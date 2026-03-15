@@ -1,4 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { UserCircle, LogOut } from 'lucide-react';
+import { useAuthStore } from './store/useAuthStore';
 import { Hand, Github, BookOpen } from 'lucide-react';
 import { Camera } from './components/Camera';
 import type { CameraRef } from './components/Camera';
@@ -21,6 +24,14 @@ function App() {
 
   const ws = useWebSocket();
   wsRef.current = ws;
+
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const {
     connect,
@@ -171,6 +182,7 @@ function App() {
                 <Github className="w-5 h-5" />
                 <span className="hidden sm:inline">GitHub</span>
               </a>
+
               <a
                 href="/docs"
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -178,6 +190,24 @@ function App() {
                 <BookOpen className="w-5 h-5" />
                 <span className="hidden sm:inline">Docs</span>
               </a>
+
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <UserCircle className="w-5 h-5 text-blue-600" />
+                <span className="hidden md:inline text-sm text-gray-700">
+                  {user?.name || 'Profile'}
+                </span>
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors text-gray-700 hover:text-red-600"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden md:inline text-sm">Logout</span>
+              </button>
             </div>
           </div>
         </div>
