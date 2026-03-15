@@ -1,269 +1,332 @@
-# Setup Guide - Sign Language Translator
-
-## Quick Start
-
-### Option 1: Docker (Recommended for demo)
-```bash
-docker-compose up
-```
-
-### Option 2: Local Development
-```bash
-# Terminal 1: MediaPipe Service
-cd backend/media_pipe_service
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8001
-
-# Terminal 2: LLM Service
-cd backend/llm_service
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-# Add GEMINI_API_KEY to .env
-uvicorn main:app --reload --port 8002
-
-# Terminal 3: API Gateway
-cd backend/api_gateway
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-
-# Terminal 4: Frontend
-cd frontend
-npm install
-npm run dev
-```
-
----
+# Setup Guide — AI Sign Language Translator
 
 ## Prerequisites
 
-### Required Software
-- **Node.js** 18+ → [Download](https://nodejs.org/)
-- **Python** 3.10+ → [Download](https://python.org/)
-- **Git** → [Download](https://git-scm.com/)
-
-### Optional (Recommended)
-- **Docker Desktop** → [Download](https://www.docker.com/products/docker-desktop)
-- **VS Code** → [Download](https://code.visualstudio.com/)
+| Software | Version | Link |
+|----------|---------|------|
+| **Node.js** | 18+ | https://nodejs.org/ |
+| **Python** | 3.10+ | https://python.org/ |
+| **Git** | any | https://git-scm.com/ |
+| **Docker** (optional) | 20+ | https://www.docker.com/products/docker-desktop |
 
 ---
 
-## Detailed Setup
+## 1. Get a Gemini API Key
 
-### 1. Get Gemini API Key
-
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with Google account
-3. Click "Create API Key"
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Sign in with a Google account
+3. Click **Create API Key**
 4. Copy the key (starts with `AIza...`)
 
-### 2. Clone Repository
+---
+
+## 2. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
-cd sign-language-translator
+git clone https://github.com/rakhatdiploma/iitudiplomas.git
+cd iitudiplomas
 ```
 
-### 3. Environment Setup
+---
 
-Create `.env` files in each service directory:
+## Quick Start — Docker (Recommended)
 
-#### `backend/llm_service/.env`
-```
-GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-pro
-PORT=8002
-```
+This is the fastest way to get everything running.
 
-#### `backend/media_pipe_service/.env`
-```
-PORT=8001
-CONFIDENCE_THRESHOLD=0.7
-```
-
-#### `backend/api_gateway/.env`
-```
-PORT=8000
-MEDIAPIPE_URL=http://localhost:8001
-LLM_URL=http://localhost:8002
-```
-
-### 4. Frontend Setup (Ulzhan)
+### 1. Create the `.env` file in the project root
 
 ```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Open http://localhost:5173
+cp .env.example .env
 ```
 
-### 5. Backend Setup (Vlad & Rakhat)
+Open `.env` and paste your Gemini API key:
 
-#### MediaPipe Service (Vlad)
+```
+GEMINI_API_KEY=AIza...your_key_here
+```
+
+### 2. Build and start all services
+
+```bash
+docker-compose up -d --build
+```
+
+### 3. Verify
+
+```bash
+docker-compose ps
+```
+
+All three containers should show `Up`:
+
+| Service | Container | Port |
+|---------|-----------|------|
+| Frontend | vur-frontend-1 | http://localhost:3001 |
+| MediaPipe | vur-media-pipe-1 | http://localhost:8001 |
+| LLM Service | vur-llm-service-1 | http://localhost:8002 |
+
+Open **http://localhost:3001** in your browser.
+
+### Useful Docker commands
+
+```bash
+docker-compose logs -f              # Stream all logs
+docker-compose logs -f media-pipe   # Logs for one service
+docker-compose down                 # Stop everything
+docker-compose up -d --build        # Rebuild and restart
+```
+
+---
+
+## Quick Start — Local Development
+
+Use this if you want hot-reload and direct access to the code.
+
+### Terminal 1 — MediaPipe Service (port 8001)
 
 ```bash
 cd backend/media_pipe_service
-
-# Create virtual environment
 python -m venv venv
-
-# Activate (Mac/Linux)
-source venv/bin/activate
-
-# Activate (Windows)
-venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# Run service
-uvicorn main:app --reload --port 8001
+uvicorn app.main:app --reload --port 8001
 ```
 
-#### LLM Service (Rakhat)
+### Terminal 2 — LLM Service (port 8002)
 
 ```bash
 cd backend/llm_service
 
-# Create virtual environment
+# Create .env with your key
+cp .env.example .env
+# Edit .env → set GEMINI_API_KEY=AIza...
+
 python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-
-# Install dependencies
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# Create .env file with your Gemini API key
-echo "GEMINI_API_KEY=your_key_here" > .env
-
-# Run service
-uvicorn main:app --reload --port 8002
+uvicorn app.main:app --reload --port 8002
 ```
 
----
+### Terminal 3 — Frontend (port 5173)
 
-## Project Structure After Setup
-
-```
-sign-language-translator/
-├── frontend/                    # React app
-│   ├── node_modules/            # Dependencies
-│   ├── src/
-│   ├── package.json
-│   └── ...
-│
-├── backend/
-│   ├── media_pipe_service/      # Vlad's service
-│   │   ├── venv/                # Python environment
-│   │   ├── main.py
-│   │   ├── requirements.txt
-│   │   └── .env
-│   │
-│   ├── llm_service/             # Rakhat's service
-│   │   ├── venv/                # Python environment
-│   │   ├── main.py
-│   │   ├── requirements.txt
-│   │   └── .env
-│   │
-│   └── api_gateway/
-│       ├── venv/
-│       ├── main.py
-│       └── requirements.txt
-│
-└── docker-compose.yml
-```
-
----
-
-## Common Commands
-
-### Frontend (Ulzhan)
 ```bash
 cd frontend
-
-npm run dev          # Start dev server
-npm run build        # Build for production
-npm run lint         # Check code style
-npm run preview      # Preview production build
+npm install
+npm run dev
 ```
 
-### Backend (Vlad & Rakhat)
+Open **http://localhost:5173** in your browser.
+
+---
+
+## Environment Variables
+
+### Root `.env` (used by `docker-compose`)
+
+```
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### `backend/llm_service/.env`
+
+```
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
+PORT=8002
+LOG_LEVEL=info
+```
+
+### `backend/media_pipe_service/.env`
+
+```
+PORT=8001
+CONFIDENCE_THRESHOLD=0.7
+LLM_SERVICE_URL=http://localhost:8002
+DEBUG=true
+```
+
+> When running with Docker, the MediaPipe service reaches the LLM service
+> via the Docker network name `http://llm-service:8002`. This is set
+> automatically in `docker-compose.yml`.
+
+---
+
+## Project Structure
+
+```
+VUR/
+├── .env                            # Gemini key (for docker-compose)
+├── .env.example
+├── docker-compose.yml
+├── Makefile
+├── README.md
+├── API_CONTRACTS.md
+├── DEVELOPMENT_PLAN.md
+├── SETUP_GUIDE.md                  # ← you are here
+│
+├── frontend/                       # React 19 + TypeScript + Vite
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── package.json
+│   └── src/
+│       ├── App.tsx
+│       ├── components/
+│       │   ├── Camera.tsx
+│       │   ├── Controls.tsx
+│       │   ├── StatusBar.tsx
+│       │   └── TranslationPanel.tsx
+│       ├── hooks/
+│       │   ├── useCamera.ts
+│       │   └── useWebSocket.ts
+│       ├── services/
+│       │   └── api.ts
+│       ├── store/
+│       │   └── useAppStore.ts
+│       └── types/
+│           └── index.ts
+│
+└── backend/
+    ├── media_pipe_service/         # FastAPI — hand detection
+    │   ├── Dockerfile
+    │   ├── requirements.txt
+    │   ├── .env.example
+    │   ├── main.py
+    │   └── app/
+    │       ├── main.py
+    │       ├── config.py
+    │       ├── models/
+    │       │   ├── gesture_classifier.py
+    │       │   └── schemas.py
+    │       ├── routers/
+    │       │   ├── health.py
+    │       │   └── websocket.py
+    │       └── services/
+    │           ├── hand_detector.py
+    │           └── sign_buffer.py
+    │
+    └── llm_service/                # FastAPI — Gemini translation
+        ├── Dockerfile
+        ├── requirements.txt
+        ├── .env.example
+        ├── main.py
+        └── app/
+            ├── main.py
+            ├── config.py
+            ├── clients/
+            │   └── gemini_client.py
+            ├── processors/
+            │   └── sentence_builder.py
+            ├── context/
+            │   └── session_manager.py
+            └── routers/
+                ├── health.py
+                └── translate.py
+```
+
+---
+
+## Service URLs
+
+### Local development
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| Frontend | http://localhost:5173 | Vite dev server |
+| MediaPipe | http://localhost:8001 | WebSocket + health |
+| MediaPipe API docs | http://localhost:8001/docs | Swagger UI (DEBUG=true) |
+| LLM Service | http://localhost:8002 | REST API |
+| LLM API docs | http://localhost:8002/docs | Swagger UI |
+| WebSocket | ws://localhost:8001/ws/sign-detection | Real-time detection |
+
+### Docker
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3001 |
+| MediaPipe | http://localhost:8001 |
+| LLM Service | http://localhost:8002 |
+
+---
+
+## Health Checks
+
 ```bash
-# In each service directory
+# MediaPipe
+curl http://localhost:8001/api/v1/health
 
-source venv/bin/activate    # Activate environment
-uvicorn main:app --reload   # Start with auto-reload
-uvicorn main:app --port 8000 # Start on specific port
+# LLM Service
+curl http://localhost:8002/health
 
-# Deactivate when done
-deactivate
+# Test LLM translation directly
+curl -X POST http://localhost:8002/api/v1/translate \
+  -H "Content-Type: application/json" \
+  -d '{"sign_sequence": ["привет", "мир"], "language": "ru"}'
 ```
 
 ---
 
 ## Troubleshooting
 
-### Frontend Issues
+### Camera not working
 
-**Error: `npm install` fails**
+- Open **http://localhost:5173** (local) or **http://localhost:3001** (Docker)
+- The browser must be Chrome, Firefox, or Edge (Safari has limited support)
+- Click the camera/lock icon in the address bar and allow camera access
+- If blocked, go to browser settings → Site Settings → Camera → Allow
+
+### `npm install` fails
+
 ```bash
-# Clear cache and retry
-npm cache clean --force
+cd frontend
 rm -rf node_modules package-lock.json
+npm cache clean --force
 npm install
 ```
 
-**Error: Camera not working**
-- Use `http://localhost:5173` (not `127.0.0.1`)
-- Check browser camera permissions
-- Ensure you're on HTTPS or localhost
+### `ModuleNotFoundError` in Python
 
-### Backend Issues
-
-**Error: `ModuleNotFoundError`**
 ```bash
-# Ensure virtual environment is activated
-source venv/bin/activate
-
-# Reinstall dependencies
+# Make sure the virtualenv is activated
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-**Error: `Address already in use`**
+### `Address already in use`
+
 ```bash
-# Find and kill process using port
-lsof -ti:8001 | xargs kill -9  # Mac/Linux
-# or use different port
-uvicorn main:app --reload --port 8003
+# Find what's using the port
+lsof -ti:8001 | xargs kill -9    # Linux/Mac
+# or pick a different port
+uvicorn app.main:app --reload --port 8003
 ```
 
-**Error: Gemini API fails**
-- Check `.env` file exists with valid `GEMINI_API_KEY`
-- Verify API key hasn't expired
-- Check internet connection
+### Gemini API errors
+
+- Verify `.env` contains a valid `GEMINI_API_KEY`
+- Check the key at https://aistudio.google.com/app/apikey
+- The LLM service runs in **fallback mode** (simple concatenation) when no key is set
+- Check logs: `docker-compose logs -f llm-service`
+
+### Docker: media-pipe container keeps restarting
+
+```bash
+docker-compose logs media-pipe --tail 30
+```
+
+Common cause: missing system library. The Dockerfile installs `libgl1` for
+OpenCV. If you see `libGL.so.1: cannot open shared object file`, rebuild:
+
+```bash
+docker-compose build media-pipe --no-cache
+docker-compose up -d
+```
 
 ---
 
-## Development URLs
+## Team
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| Frontend | http://localhost:5173 | React app |
-| API Gateway | http://localhost:8000 | Main API |
-| API Docs | http://localhost:8000/docs | Swagger UI |
-| MediaPipe | http://localhost:8001 | Hand detection |
-| LLM Service | http://localhost:8002 | Gemini integration |
-
----
-
-## Next Steps
-
-1. **Verify setup**: All services should start without errors
-2. **Test camera**: Open frontend and allow camera access
-3. **Test detection**: Make hand gestures in front of camera
-4. **Check integration**: Signs should appear as text in the UI
+| Role | Name | Module | Port |
+|------|------|--------|------|
+| Frontend | Ulzhan | React + WebSocket Client | 5173 / 3001 |
+| Backend | Vlad | MediaPipe Service | 8001 |
+| Backend / Team Lead | Rakhat | LLM Service (Gemini) | 8002 |
