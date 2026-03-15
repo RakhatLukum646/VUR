@@ -1,0 +1,43 @@
+services:
+  # ── Frontend (React + Nginx) ──────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:80"
+    depends_on:
+      - media-pipe
+      - llm-service
+    restart: unless-stopped
+
+  # ── MediaPipe Service ─────────────────────────────────────
+  media-pipe:
+    build:
+      context: ./backend/media_pipe_service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - DEBUG=true
+      - CONFIDENCE_THRESHOLD=0.7
+      - LLM_SERVICE_URL=http://llm-service:8002
+    depends_on:
+      - llm-service
+    restart: unless-stopped
+
+  # ── LLM Service (Gemini) ──────────────────────────────────
+  llm-service:
+    build:
+      context: ./backend/llm_service
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      - PORT=8002
+      - GEMINI_MODEL=gemini-1.5-flash
+      - LOG_LEVEL=info
+    restart: unless-stopped
