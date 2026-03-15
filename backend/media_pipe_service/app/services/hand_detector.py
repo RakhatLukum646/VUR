@@ -76,7 +76,11 @@ class HandDetector:
                     landmark.y,  # Normalized 0-1
                     landmark.z   # Relative depth
                 ])
-            
+
+            # Normalize to wrist-relative, unit-scaled coordinates so the
+            # classifier is invariant to hand position and distance from camera.
+            landmarks = self.normalize_landmarks(landmarks)
+
             return True, landmarks, handedness, confidence
             
         except Exception as e:
@@ -111,15 +115,30 @@ class HandDetector:
     
     def draw_landmarks(self, image: np.ndarray, landmarks: List) -> np.ndarray:
         """Draw landmarks on image for visualization."""
-        # Convert landmarks back to MediaPipe format
-        hand_landmarks = self.mp_hands.HandLandmark
-        
-        # Create a copy for drawing
         annotated_image = image.copy()
-        
-        # Draw using MediaPipe drawing utils
-        mp_landmarks = self.mp_hands.HandLandmark
-        
+        h, w = annotated_image.shape[:2]
+
+        # Convert flat list back to pixel coordinates and draw dots + connections
+        points = []
+        for lm in landmarks:
+            px = int(lm[0] * w)
+            py = int(lm[1] * h)
+            points.append((px, py))
+            cv2.circle(annotated_image, (px, py), 4, (0, 255, 0), -1)
+
+        # Draw finger bone connections
+        connections = [
+            (0, 1), (1, 2), (2, 3), (3, 4),        # thumb
+            (0, 5), (5, 6), (6, 7), (7, 8),          # index
+            (0, 9), (9, 10), (10, 11), (11, 12),     # middle
+            (0, 13), (13, 14), (14, 15), (15, 16),   # ring
+            (0, 17), (17, 18), (18, 19), (19, 20),   # pinky
+            (5, 9), (9, 13), (13, 17),               # knuckle bar
+        ]
+        for start, end in connections:
+            if start < len(points) and end < len(points):
+                cv2.line(annotated_image, points[start], points[end], (0, 200, 255), 2)
+
         return annotated_image
     
     def close(self):

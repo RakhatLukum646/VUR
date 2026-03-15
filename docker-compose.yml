@@ -38,6 +38,6 @@ services:
       - .env
     environment:
       - PORT=8002
-      - GEMINI_MODEL=gemini-1.5-flash
+      - GEMINI_MODEL=gemini-2.5-flash
       - LOG_LEVEL=info
     restart: unless-stopped
