@@ -1,8 +1,9 @@
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role?: string;
+  id: string
+  name: string
+  email: string
+  is_verified?: boolean
+  two_factor_enabled?: boolean
 }
 
 export interface LoginRequest {
