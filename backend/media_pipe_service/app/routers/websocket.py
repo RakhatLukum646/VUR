@@ -14,6 +14,7 @@ from app.config import settings
 websocket_router = APIRouter()
 
 active_connections: Dict[str, WebSocket] = {}
+session_languages: Dict[str, str] = {}
 hand_detector = HandDetector()
 sign_buffer = SignBuffer()
 gesture_classifier = GestureClassifier()
@@ -50,6 +51,8 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         if session_id and session_id in active_connections:
             del active_connections[session_id]
+        if session_id and session_id in session_languages:
+            del session_languages[session_id]
     except Exception as e:
         print(f"WebSocket error: {e}")
         try:
@@ -79,9 +82,19 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
             })
             return
 
-        hand_detected, landmarks, handedness, detection_conf = hand_detector.detect(image_b64)
+        hand_detected, normalized_landmarks, screen_landmarks, handedness, detection_conf = hand_detector.detect(image_b64)
 
         if not hand_detected:
+            # Record no-hand frame; trigger translation if rest boundary reached
+            should_send = sign_buffer.record_no_hand(session_id)
+            if should_send:
+                sequence = sign_buffer.commit_sequence(session_id)
+                if sequence:
+                    lang = session_languages.get(session_id, "ru")
+                    asyncio.create_task(
+                        send_to_llm_and_relay(session_id, sequence, lang)
+                    )
+
             await websocket.send_json({
                 "type": "detection",
                 "payload": {
@@ -93,7 +106,6 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
             })
             return
 
-        normalized_landmarks = hand_detector.normalize_landmarks(landmarks)
         sign, confidence = gesture_classifier.classify(normalized_landmarks)
 
         if sign and confidence >= settings.CONFIDENCE_THRESHOLD:
@@ -101,8 +113,9 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
 
             if is_new and sign_buffer.should_commit(session_id):
                 sequence = sign_buffer.commit_sequence(session_id)
+                lang = session_languages.get(session_id, "ru")
                 asyncio.create_task(
-                    send_to_llm_and_relay(session_id, sequence)
+                    send_to_llm_and_relay(session_id, sequence, lang)
                 )
 
         await websocket.send_json({
@@ -111,7 +124,7 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
                 "sign": sign,
                 "confidence": confidence,
                 "hand_detected": True,
-                "landmarks": landmarks if settings.DEBUG else None,
+                "landmarks": screen_landmarks,
                 "timestamp": timestamp,
             },
         })
@@ -130,9 +143,11 @@ async def handle_command(websocket: WebSocket, payload: dict):
 
     if action == "start":
         active_connections[session_id] = websocket
+        lang = payload.get("language", "ru")
+        session_languages[session_id] = lang
         await websocket.send_json({
             "type": "command",
-            "payload": {"status": "started", "session_id": session_id},
+            "payload": {"status": "started", "session_id": session_id, "language": lang},
         })
 
     elif action == "stop":
@@ -153,8 +168,9 @@ async def handle_command(websocket: WebSocket, payload: dict):
     elif action == "translate":
         sequence = sign_buffer.commit_sequence(session_id)
         if sequence:
+            lang = session_languages.get(session_id, "ru")
             asyncio.create_task(
-                send_to_llm_and_relay(session_id, sequence)
+                send_to_llm_and_relay(session_id, sequence, lang)
             )
         await websocket.send_json({
             "type": "command",
@@ -162,7 +178,7 @@ async def handle_command(websocket: WebSocket, payload: dict):
         })
 
 
-async def send_to_llm_and_relay(session_id: str, sequence: list):
+async def send_to_llm_and_relay(session_id: str, sequence: list, language: str = "ru"):
     """Send sign sequence to LLM and relay the translation back via WebSocket."""
     try:
         async with httpx.AsyncClient() as client:
@@ -172,7 +188,7 @@ async def send_to_llm_and_relay(session_id: str, sequence: list):
                     "sign_sequence": sequence,
                     "session_id": session_id,
                     "context": "",
-                    "language": "ru",
+                    "language": language,
                 },
                 timeout=15.0,
             )

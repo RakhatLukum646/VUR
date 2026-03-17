@@ -2,7 +2,10 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UseWebSocketReturn, DetectionResult, FrameMessage, CommandMessage } from '../types';
 import { useAppStore } from '../store/useAppStore';
 
-const WS_URL = 'ws://localhost:8001/ws/sign-detection';
+// In Docker: gateway proxies /ws/ → MediaPipe.
+// In local dev set VITE_WS_URL=ws://localhost:8001 in .env.local.
+const WS_BASE = import.meta.env.VITE_WS_URL ?? `ws://${window.location.host}`;
+const WS_URL = `${WS_BASE}/ws/sign-detection`;
 
 export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
@@ -11,7 +14,7 @@ export function useWebSocket(): UseWebSocketReturn {
   const [lastMessage, setLastMessage] = useState<DetectionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  const { sessionId, setConnected, setConnectionStatus } = useAppStore();
+  const { sessionId, language, setConnected, setConnectionStatus } = useAppStore();
 
   const connect = useCallback(() => {
     try {
@@ -30,6 +33,7 @@ export function useWebSocket(): UseWebSocketReturn {
           payload: {
             action: 'start',
             session_id: sessionId,
+            language,
           },
         };
         ws.send(JSON.stringify(startMessage));

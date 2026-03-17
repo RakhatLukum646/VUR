@@ -1,4 +1,6 @@
-const AUTH_API_URL = 'http://localhost:8003';
+// In Docker the Nginx gateway forwards /auth/ to the auth service.
+// In local dev set VITE_AUTH_URL=http://localhost:8003 in .env.local.
+const AUTH_API_URL = import.meta.env.VITE_AUTH_URL ?? '';
 
 export interface RegisterRequest {
   name: string;

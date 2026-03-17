@@ -47,12 +47,14 @@ class HandDetector:
         except Exception as e:
             raise ValueError(f"Image decoding error: {str(e)}")
     
-    def detect(self, base64_image: str) -> Tuple[bool, Optional[List], Optional[str], float]:
+    def detect(self, base64_image: str) -> Tuple[bool, Optional[List], Optional[List], Optional[str], float]:
         """
         Detect hand landmarks in image.
-        
+
         Returns:
-            Tuple of (hand_detected, landmarks, handedness, confidence)
+            Tuple of (hand_detected, normalized_landmarks, screen_landmarks, handedness, confidence)
+            - normalized_landmarks: wrist-relative unit-scaled coords for classifier
+            - screen_landmarks: raw 0-1 image coords [[x, y], ...] for overlay drawing
         """
         try:
             image = self.decode_frame(base64_image)
@@ -61,31 +63,28 @@ class HandDetector:
             results = self.hands.process(image)
             
             if not results.multi_hand_landmarks:
-                return False, None, None, 0.0
+                return False, None, None, None, 0.0
             
             # Get first hand
             hand_landmarks = results.multi_hand_landmarks[0]
             handedness = results.multi_handedness[0].classification[0].label
             confidence = results.multi_handedness[0].classification[0].score
             
-            # Extract 21 landmarks [x, y, z]
-            landmarks = []
+            # Raw 0-1 screen coordinates for frontend overlay
+            screen_landmarks = []
+            raw_for_norm = []
             for landmark in hand_landmarks.landmark:
-                landmarks.append([
-                    landmark.x,  # Normalized 0-1
-                    landmark.y,  # Normalized 0-1
-                    landmark.z   # Relative depth
-                ])
+                screen_landmarks.append([landmark.x, landmark.y])
+                raw_for_norm.append([landmark.x, landmark.y, landmark.z])
 
-            # Normalize to wrist-relative, unit-scaled coordinates so the
-            # classifier is invariant to hand position and distance from camera.
-            landmarks = self.normalize_landmarks(landmarks)
+            # Normalize to wrist-relative, unit-scaled coordinates for classifier
+            normalized_landmarks = self.normalize_landmarks(raw_for_norm)
 
-            return True, landmarks, handedness, confidence
+            return True, normalized_landmarks, screen_landmarks, handedness, confidence
             
         except Exception as e:
             print(f"Detection error: {e}")
-            return False, None, None, 0.0
+            return False, None, None, None, 0.0
     
     def normalize_landmarks(self, landmarks: List[List[float]]) -> List[List[float]]:
         """

@@ -88,4 +88,4 @@ npm run dev
 
 ## Links
 
-- Repository: https://github.com/rakhatdiploma/iitudiplomas
+- Repository: https://github.com/RakhatLukum646/VUR

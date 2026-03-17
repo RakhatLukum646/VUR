@@ -1,7 +1,8 @@
 import type { TranslationResponse, SessionContext } from '../types';
 
-const LLM_API_URL = 'http://localhost:8002';
-const API_GATEWAY_URL = 'http://localhost:8000';
+// In Docker (production) the Nginx gateway proxies all traffic through port 80.
+// In local dev (npm run dev), set VITE_LLM_URL=http://localhost:8002 in .env.local.
+const LLM_API_URL = import.meta.env.VITE_LLM_URL ?? '';
 
 // Translate sign sequence to natural language
 export async function translateSigns(
@@ -79,58 +80,21 @@ export async function clearSession(sessionId: string): Promise<{ message: string
   return response.json();
 }
 
-// Health check
-export async function checkHealth(): Promise<{
-  status: string;
-  timestamp: string;
-  services: {
-    api_gateway: string;
-    media_pipe: string;
-    llm: string;
-  };
-}> {
-  const response = await fetch(`${API_GATEWAY_URL}/api/v1/health`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Health check failed: ${response.status}`);
-  }
-
+// Combined health check (goes through gateway /health)
+export async function checkHealth(): Promise<{ status: string }> {
+  const response = await fetch('/health');
+  if (!response.ok) throw new Error(`Health check failed: ${response.status}`);
   return response.json();
 }
 
-// Check MediaPipe service health
 export async function checkMediaPipeHealth(): Promise<{ status: string }> {
-  const response = await fetch('http://localhost:8001/api/v1/health', {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`MediaPipe health check failed: ${response.status}`);
-  }
-
+  const response = await fetch('/health/mediapipe');
+  if (!response.ok) throw new Error(`MediaPipe health check failed: ${response.status}`);
   return response.json();
 }
 
-// Check LLM service health
 export async function checkLLMHealth(): Promise<{ status: string }> {
-  const response = await fetch(`${LLM_API_URL}/health`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`LLM health check failed: ${response.status}`);
-  }
-
+  const response = await fetch(`${LLM_API_URL}/health`);
+  if (!response.ok) throw new Error(`LLM health check failed: ${response.status}`);
   return response.json();
 }

@@ -1,9 +1,12 @@
-import { useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useImperativeHandle, forwardRef, useRef, useState } from 'react';
 import { Video, VideoOff, AlertCircle } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
+import { LandmarkOverlay } from './LandmarkOverlay';
+import type { Landmark } from '../types';
 
 interface CameraProps {
   isTranslating: boolean;
+  landmarks?: Landmark[] | null;
 }
 
 export interface CameraRef {
@@ -13,8 +16,20 @@ export interface CameraRef {
 }
 
 export const Camera = forwardRef<CameraRef, CameraProps>(
-  ({ isTranslating }, ref) => {
+  ({ isTranslating, landmarks }, ref) => {
     const { videoRef, canvasRef, isReady, error, startCamera, stopCamera, captureFrame } = useCamera();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [overlaySize, setOverlaySize] = useState({ width: 640, height: 480 });
+
+    useEffect(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const obs = new ResizeObserver(() => {
+        setOverlaySize({ width: el.clientWidth, height: el.clientHeight });
+      });
+      obs.observe(el);
+      return () => obs.disconnect();
+    }, []);
 
     // Expose captureFrame to parent
     useImperativeHandle(ref, () => ({
@@ -34,7 +49,7 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
 
     return (
       <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-lg">
-        <div className="relative aspect-video bg-black">
+        <div ref={containerRef} className="relative aspect-video bg-black">
           {/* Video element is always in the DOM so videoRef is available */}
           <video
             ref={videoRef}
@@ -43,6 +58,15 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
             muted
             className={`w-full h-full object-cover ${isReady ? '' : 'hidden'}`}
           />
+
+          {/* Hand landmark skeleton overlay */}
+          {isReady && (
+            <LandmarkOverlay
+              landmarks={landmarks}
+              width={overlaySize.width}
+              height={overlaySize.height}
+            />
+          )}
 
           {/* Overlays */}
           {error && (

@@ -1,5 +1,6 @@
-import { Play, Square, RotateCcw, Mic } from 'lucide-react';
+import { Play, Square, RotateCcw, Mic, Globe } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { LANGUAGE_OPTIONS } from '../types';
 
 interface ControlsProps {
   onStart: () => void;
@@ -8,7 +9,7 @@ interface ControlsProps {
 }
 
 export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
-  const { isTranslating, connectionStatus, detectedSigns } = useAppStore();
+  const { isTranslating, connectionStatus, detectedSigns, language, setLanguage } = useAppStore();
 
   const getStatusColor = () => {
     switch (connectionStatus) {
@@ -81,8 +82,25 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
           </button>
         </div>
 
-        {/* Stats */}
-        <div className="flex items-center gap-6 text-sm text-gray-600">
+        {/* Language + Stats */}
+        <div className="flex items-center gap-4 text-sm text-gray-600">
+          {/* Language Selector */}
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-indigo-500" />
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as typeof language)}
+              disabled={isTranslating}
+              className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {LANGUAGE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.flag} {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-center gap-2">
             <Mic className="w-4 h-4 text-blue-500" />
             <span>{detectedSigns.length} signs</span>

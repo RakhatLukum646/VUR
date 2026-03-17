@@ -1,26 +1,31 @@
 """Gesture classification using hand landmarks.
 
-Strategy
---------
-Pure boolean finger-extension (5 bits) cannot distinguish many ASL signs that
-share the same finger pattern but differ in thumb position, finger spacing,
-or hand orientation (e.g. 1 vs D, 2 vs V/U, 4 vs B, 5 vs open-B).
+Two-tier strategy
+-----------------
+1. ML model (MLPClassifier) — loaded from data/gesture_model.pkl when available.
+   Trained on 63-feature landmark vectors (21 × [x, y, z]).
+   Achieves higher accuracy on full ASL alphabet incl. ambiguous signs.
 
-This classifier uses a richer feature set:
-  - 5-bit extension vector  (coarse gating)
-  - thumb abduction angle   (is thumb tucked or spread?)
-  - per-finger curl ratio   (tip-to-MCP distance / fully-extended distance)
-  - index–middle spread     (U vs V vs 2)
-  - index tip height above wrist  (pointing up vs sideways → D vs 1)
-  - middle-finger curl       (3 vs W disambiguation)
+2. Heuristic fallback — geometry-based rules for ~15 common signs.
+   Used automatically when no trained model exists.
+
+To train the ML model:
+    cd backend/media_pipe_service
+    python scripts/record_training_data.py --label A --samples 200
+    # ... repeat for each sign ...
+    python scripts/train_classifier.py
 
 All landmarks are expected to be wrist-relative and unit-scaled
 (output of HandDetector.normalize_landmarks).
 """
 
+import logging
 import numpy as np
 from typing import Optional, Tuple
 from app.config import settings
+from app.models.ml_classifier import MLClassifier
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -131,18 +136,31 @@ class GestureFeatures:
 
 class GestureClassifier:
     """
-    Geometry-based ASL hand gesture classifier.
+    Gesture classifier with ML-first, heuristic-fallback strategy.
     Expects normalized (wrist-relative, unit-scaled) landmarks.
     """
 
     def __init__(self):
         self.confidence_threshold = settings.CONFIDENCE_THRESHOLD
+        self._ml = MLClassifier()
+        if self._ml.is_available:
+            logger.info("Using ML classifier (MLP).")
+        else:
+            logger.info("Using heuristic classifier (no model found).")
 
     # ------------------------------------------------------------------
     def classify(self, landmarks: list) -> Tuple[Optional[str], float]:
         if not landmarks or len(landmarks) < 21:
             return None, 0.0
 
+        # --- ML path ---------------------------------------------------
+        if self._ml.is_available:
+            sign, conf = self._ml.classify(landmarks)
+            if sign and conf >= self.confidence_threshold:
+                return sign, conf
+            return None, 0.0
+
+        # --- Heuristic fallback ----------------------------------------
         f = GestureFeatures(np.array(landmarks, dtype=float))
         sign, conf = self._match(f)
 
