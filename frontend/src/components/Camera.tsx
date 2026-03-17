@@ -41,10 +41,10 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
     // Auto-start camera when component mounts
     useEffect(() => {
       startCamera();
-      
       return () => {
         stopCamera();
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (

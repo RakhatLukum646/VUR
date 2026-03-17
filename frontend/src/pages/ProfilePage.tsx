@@ -47,8 +47,8 @@ export default function ProfilePage() {
       const freshUser = await getCurrentUser(token);
       login(freshUser, token);
       setProfileMessage('Name updated successfully');
-    } catch (err: any) {
-      setProfileMessage(err.message || 'Failed to update name');
+    } catch (err: unknown) {
+      setProfileMessage(err instanceof Error ? err.message : 'Failed to update name');
     }
   };
 
@@ -59,8 +59,8 @@ export default function ProfilePage() {
       setPasswordMessage('Password changed successfully');
       setCurrentPassword('');
       setNewPassword('');
-    } catch (err: any) {
-      setPasswordMessage(err.message || 'Failed to change password');
+    } catch (err: unknown) {
+      setPasswordMessage(err instanceof Error ? err.message : 'Failed to change password');
     }
   };
 
@@ -69,8 +69,8 @@ export default function ProfilePage() {
     try {
       const result = await resendVerification(token);
       setVerificationMessage(result.message);
-    } catch (err: any) {
-      setVerificationMessage(err.message || 'Failed to resend verification');
+    } catch (err: unknown) {
+      setVerificationMessage(err instanceof Error ? err.message : 'Failed to resend verification');
     }
   };
 
@@ -81,8 +81,8 @@ export default function ProfilePage() {
       setTwoFaSecret(result.secret);
       setTwoFaUrl(result.otp_auth_url);
       setTwoFaMessage('2FA secret generated. Add it to Google Authenticator.');
-    } catch (err: any) {
-      setTwoFaMessage(err.message || 'Failed to setup 2FA');
+    } catch (err: unknown) {
+      setTwoFaMessage(err instanceof Error ? err.message : 'Failed to setup 2FA');
     }
   };
 
@@ -93,8 +93,8 @@ export default function ProfilePage() {
       setTwoFaMessage(result.message);
       const freshUser = await getCurrentUser(token);
       login(freshUser, token);
-    } catch (err: any) {
-      setTwoFaMessage(err.message || 'Failed to enable 2FA');
+    } catch (err: unknown) {
+      setTwoFaMessage(err instanceof Error ? err.message : 'Failed to enable 2FA');
     }
   };
 

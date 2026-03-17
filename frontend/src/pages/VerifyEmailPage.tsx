@@ -4,19 +4,19 @@ import { verifyEmail } from '../services/authApi';
 
 export default function VerifyEmailPage() {
   const [params] = useSearchParams();
-  const [message, setMessage] = useState('Verifying email...');
+  const [message, setMessage] = useState(() =>
+    params.get('token') ? 'Verifying email...' : 'Missing verification token'
+  );
 
   useEffect(() => {
     const token = params.get('token');
-
-    if (!token) {
-      setMessage('Missing verification token');
-      return;
-    }
+    if (!token) return;
 
     verifyEmail(token)
       .then((result) => setMessage(result.message))
-      .catch((err) => setMessage(err.message || 'Verification failed'));
+      .catch((err: unknown) =>
+        setMessage(err instanceof Error ? err.message : 'Verification failed')
+      );
   }, [params]);
 
   return (

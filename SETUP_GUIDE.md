@@ -23,8 +23,8 @@
 ## 2. Clone the Repository
 
 ```bash
-git clone https://github.com/rakhatdiploma/iitudiplomas.git
-cd iitudiplomas
+git clone https://github.com/RakhatLukum646/VUR
+cd VUR
 ```
 
 ---

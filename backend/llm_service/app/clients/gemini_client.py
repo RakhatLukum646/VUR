@@ -95,7 +95,10 @@ class GeminiClient:
         sign_sequence: List[str],
         context: Optional[str] = None,
     ) -> dict:
-        text = " ".join(sign_sequence).lower()
+        if all(len(s) == 1 for s in sign_sequence):
+            text = "".join(sign_sequence).lower()
+        else:
+            text = " ".join(sign_sequence).lower()
 
         common = {
             "привет": "Привет!",

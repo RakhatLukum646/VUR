@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserCircle, LogOut } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
@@ -21,14 +21,14 @@ function App() {
   const accumulatedSignsRef = useRef<string[]>([]);
   const wsRef = useRef<ReturnType<typeof useWebSocket> | null>(null);
 
-  const [lastSign, setLastSign] = useState<string | null>(null);
-  const [lastConfidence, setLastConfidence] = useState(0);
-  const [lastLandmarks, setLastLandmarks] = useState<[number, number][] | null>(null);
 
   const { toasts, dismiss, toast } = useToast();
 
   const ws = useWebSocket();
-  wsRef.current = ws;
+
+  useEffect(() => {
+    wsRef.current = ws;
+  });
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -41,7 +41,11 @@ function App() {
   const {
     connect,
     disconnect,
+    clearDetection,
     lastMessage,
+    lastSign,
+    lastConfidence,
+    lastLandmarks,
     sendCommand,
     error: wsError,
   } = ws;
@@ -71,19 +75,9 @@ function App() {
     if (!lastMessage) return;
 
     if (lastMessage.type === 'detection') {
-      const { sign, confidence, hand_detected, landmarks } = lastMessage.payload;
-
-      // Always update landmarks (even when no sign detected, for live overlay)
-      if (hand_detected && landmarks) {
-        setLastLandmarks(landmarks as [number, number][]);
-      } else if (!hand_detected) {
-        setLastLandmarks(null);
-      }
+      const { sign } = lastMessage.payload;
 
       if (sign) {
-        setLastSign(sign);
-        setLastConfidence(confidence || 0);
-
         const lastAdded =
           accumulatedSignsRef.current[accumulatedSignsRef.current.length - 1];
         if (sign !== lastAdded) {
@@ -153,10 +147,9 @@ function App() {
 
     sendCommand('clear');
     clearStore();
+    clearDetection();
     accumulatedSignsRef.current = [];
-    setLastSign(null);
-    setLastConfidence(0);
-  }, [sessionId, sendCommand, clearStore]);
+  }, [sessionId, sendCommand, clearStore, clearDetection]);
 
   const handleProcessTranslation = useCallback(async () => {
     const signs = accumulatedSignsRef.current;
@@ -337,7 +330,7 @@ function App() {
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-            <p>IITU Diploma Project &bull; Team: Ulzhan, Vlad, Rakhat</p>
+            <p>AITU Diploma Project &bull; Team: Ulzhan, Vlad, Rakhat</p>
             <p>
               Session ID: <span className="font-mono">{sessionId}</span>
             </p>

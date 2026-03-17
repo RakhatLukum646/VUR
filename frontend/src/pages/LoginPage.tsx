@@ -30,11 +30,8 @@ export default function LoginPage() {
 
       login(result.user, result.access_token);
       navigate('/');
-    } catch (err: any) {
-      const message =
-        err?.message ||
-        err?.response?.data?.detail ||
-        'Login failed';
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Login failed';
 
       if (message.toLowerCase().includes('2fa code required')) {
         setRequires2fa(true);

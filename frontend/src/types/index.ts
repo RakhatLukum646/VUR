@@ -121,6 +121,10 @@ export interface UseWebSocketReturn {
   disconnect: () => void;
   sendFrame: (image: string) => void;
   sendCommand: (action: 'start' | 'stop' | 'clear') => void;
+  clearDetection: () => void;
   lastMessage: DetectionResult | null;
+  lastSign: string | null;
+  lastConfidence: number;
+  lastLandmarks: Landmark[] | null;
   error: string | null;
 }

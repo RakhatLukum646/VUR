@@ -10,10 +10,13 @@ const WS_URL = `${WS_BASE}/ws/sign-detection`;
 export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const frameIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  
+
   const [lastMessage, setLastMessage] = useState<DetectionResult | null>(null);
+  const [lastSign, setLastSign] = useState<string | null>(null);
+  const [lastConfidence, setLastConfidence] = useState(0);
+  const [lastLandmarks, setLastLandmarks] = useState<[number, number][] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { sessionId, language, setConnected, setConnectionStatus } = useAppStore();
 
   const connect = useCallback(() => {
@@ -43,6 +46,16 @@ export function useWebSocket(): UseWebSocketReturn {
         try {
           const data: DetectionResult = JSON.parse(event.data);
           setLastMessage(data);
+          if (data.type === 'detection') {
+            const { sign, confidence, hand_detected, landmarks } = data.payload;
+            setLastSign(sign ?? null);
+            setLastConfidence(confidence ?? 0);
+            if (hand_detected && landmarks) {
+              setLastLandmarks(landmarks as [number, number][]);
+            } else if (!hand_detected) {
+              setLastLandmarks(null);
+            }
+          }
         } catch (err) {
           console.error('Failed to parse WebSocket message:', err);
         }
@@ -68,11 +81,11 @@ export function useWebSocket(): UseWebSocketReturn {
       };
 
       wsRef.current = ws;
-    } catch (err) {
+    } catch {
       setError('Failed to connect to WebSocket');
       setConnectionStatus('error');
     }
-  }, [sessionId, setConnected, setConnectionStatus]);
+  }, [sessionId, language, setConnected, setConnectionStatus]);
 
   const disconnect = useCallback(() => {
     // Send stop command
@@ -130,6 +143,12 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, [sessionId]);
 
+  const clearDetection = useCallback(() => {
+    setLastSign(null);
+    setLastConfidence(0);
+    setLastLandmarks(null);
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -146,7 +165,11 @@ export function useWebSocket(): UseWebSocketReturn {
     disconnect,
     sendFrame,
     sendCommand,
+    clearDetection,
     lastMessage,
+    lastSign,
+    lastConfidence,
+    lastLandmarks,
     error,
   };
 }
