@@ -4,9 +4,15 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["translation"])
+
+# Module-level limiter — mirrors the one attached to app.state in main.py.
+# slowapi resolves limits against the shared state automatically.
+_limiter = Limiter(key_func=get_remote_address)
 
 
 class TranslationRequest(BaseModel):
@@ -50,7 +56,8 @@ def _get_builder(request: Request):
 
 
 @router.post("/translate", response_model=TranslationResponse)
-async def translate_signs(body: TranslationRequest, request: Request):
+@_limiter.limit("30/minute")
+async def translate_signs(request: Request, body: TranslationRequest):
     """Translate sign sequence to natural language."""
     builder = _get_builder(request)
 
