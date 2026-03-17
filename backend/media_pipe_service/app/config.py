@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     
     # Sign buffer settings
     SIGN_BUFFER_TIMEOUT_MS: int = 1500  # Time before committing sign sequence
-    MIN_SEQUENCE_LENGTH: int = 1
+    MIN_SEQUENCE_LENGTH: int = 2
     
     class Config:
         env_file = ".env"

@@ -67,13 +67,13 @@ class GestureFeatures:
         # --- 5-bit extension vector ---
         # Thumb: extended when tip is clearly to the side of the IP joint
         thumb_abduction = _dist(thumb_tip, pink_mcp) - _dist(thumb_ip, pink_mcp)
-        self.thumb_ext = thumb_abduction > 0.0
+        self.thumb_ext = bool(thumb_abduction > 0.0)
 
         # Fingers: tip above PIP in normalized y (negative = up in image coords)
-        self.idx_ext  = idx_tip[1]  < idx_pip[1]
-        self.mid_ext  = mid_tip[1]  < mid_pip[1]
-        self.ring_ext = ring_tip[1] < ring_pip[1]
-        self.pink_ext = pink_tip[1] < pink_pip[1]
+        self.idx_ext  = bool(idx_tip[1]  < idx_pip[1])
+        self.mid_ext  = bool(mid_tip[1]  < mid_pip[1])
+        self.ring_ext = bool(ring_tip[1] < ring_pip[1])
+        self.pink_ext = bool(pink_tip[1] < pink_pip[1])
 
         self.ext = [self.thumb_ext, self.idx_ext, self.mid_ext,
                     self.ring_ext, self.pink_ext]
