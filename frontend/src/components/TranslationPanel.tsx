@@ -1,6 +1,7 @@
 import React from 'react';
-import { MessageSquare, History, Sparkles, Activity } from 'lucide-react';
+import { MessageSquare, History, Sparkles, Activity, Volume2, VolumeX } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { useSpeech } from '../hooks/useSpeech';
 
 interface TranslationPanelProps {
   lastSign: string | null;
@@ -11,13 +12,19 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   lastSign,
   confidence,
 }) => {
-  const { detectedSigns, currentSentence, translationHistory } = useAppStore();
+  const { detectedSigns, currentSentence, translationHistory, language } = useAppStore();
+  const { speak, stop, isSpeaking, isSupported } = useSpeech();
 
-  // Format detected signs for display
   const signsDisplay = detectedSigns.slice(-20).join(' ');
-  
-  // Get recent history (last 5 items)
   const recentHistory = translationHistory.slice(-5).reverse();
+
+  const handleSpeak = (text: string) => {
+    if (isSpeaking) {
+      stop();
+    } else {
+      speak(text, language);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full">
@@ -38,7 +45,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               Current Detection
             </span>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="text-4xl font-bold text-blue-600 min-w-[60px]">
               {lastSign || '-'}
@@ -82,9 +89,34 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
 
         {/* Translated Sentence */}
         <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-2">
-            Translated Sentence
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-700">
+              Translated Sentence
+            </h3>
+            {isSupported && currentSentence && (
+              <button
+                onClick={() => handleSpeak(currentSentence)}
+                title={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  isSpeaking
+                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                    : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                }`}
+              >
+                {isSpeaking ? (
+                  <>
+                    <VolumeX className="w-3.5 h-3.5" />
+                    Stop
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-3.5 h-3.5" />
+                    Read aloud
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 min-h-[80px]">
             {currentSentence ? (
               <p className="text-lg text-gray-800">{currentSentence}</p>
@@ -96,7 +128,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
           </div>
         </div>
 
-        {/* History */}
+        {/* History — each item has its own speak button */}
         {recentHistory.length > 0 && (
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
@@ -107,14 +139,25 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               {recentHistory.map((item, index) => (
                 <div
                   key={index}
-                  className="bg-gray-50 rounded-lg p-3 text-sm"
+                  className="bg-gray-50 rounded-lg p-3 text-sm flex items-start gap-2"
                 >
-                  <div className="text-gray-500 text-xs mb-1">
-                    {item.signs.join(' ')}
+                  <div className="flex-1">
+                    <div className="text-gray-500 text-xs mb-1">
+                      {item.signs.join(' ')}
+                    </div>
+                    <div className="text-gray-800 font-medium">
+                      {item.translation}
+                    </div>
                   </div>
-                  <div className="text-gray-800 font-medium">
-                    {item.translation}
-                  </div>
+                  {isSupported && (
+                    <button
+                      onClick={() => speak(item.translation, language)}
+                      title="Read aloud"
+                      className="mt-0.5 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
