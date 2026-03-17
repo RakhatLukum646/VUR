@@ -1,4 +1,20 @@
 services:
+  # ── Redis — shared session cache ──────────────────────────
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    # Persist data across restarts with AOF
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # ── API Gateway (Nginx) — single public entry point ───────
   gateway:
     image: nginx:alpine
@@ -54,6 +70,11 @@ services:
       - PORT=8002
       - GEMINI_MODEL=gemini-2.5-flash
       - LOG_LEVEL=info
+      - USE_REDIS=true
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── Auth Service ──────────────────────────────────────────
@@ -68,3 +89,6 @@ services:
     environment:
       - frontend_url=http://localhost
     restart: unless-stopped
+
+volumes:
+  redis_data:
