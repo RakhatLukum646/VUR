@@ -1,14 +1,51 @@
 services:
+  # ── Redis — shared session cache ──────────────────────────
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    # Persist data across restarts with AOF
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── API Gateway (Nginx) — single public entry point ───────
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      media-pipe:
+        condition: service_healthy
+      llm-service:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ── Frontend (React + Nginx) ──────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "3001:80"
+    # Not exposed directly — accessed via gateway
+    expose:
+      - "80"
     depends_on:
-      - media-pipe
-      - llm-service
+      media-pipe:
+        condition: service_healthy
+      llm-service:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── MediaPipe Service ─────────────────────────────────────
@@ -16,28 +53,67 @@ services:
     build:
       context: ./backend/media_pipe_service
       dockerfile: Dockerfile
-    ports:
-      - "8001:8001"
+    expose:
+      - "8001"
     environment:
       - PORT=8001
-      - DEBUG=true
       - CONFIDENCE_THRESHOLD=0.7
       - LLM_SERVICE_URL=http://llm-service:8002
     depends_on:
-      - llm-service
+      llm-service:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ── LLM Service (Gemini) ──────────────────────────────────
   llm-service:
     build:
       context: ./backend/llm_service
       dockerfile: Dockerfile
-    ports:
-      - "8002:8002"
+    expose:
+      - "8002"
     env_file:
       - .env
     environment:
       - PORT=8002
-      - GEMINI_MODEL=gemini-1.5-flash
+      - GEMINI_MODEL=gemini-2.5-flash
       - LOG_LEVEL=info
+      - USE_REDIS=true
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Auth Service ──────────────────────────────────────────
+  auth-service:
+    build:
+      context: ./backend/auth_service
+      dockerfile: Dockerfile
+    expose:
+      - "8003"
+    env_file:
+      - .env
+    environment:
+      - frontend_url=http://localhost
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  redis_data:

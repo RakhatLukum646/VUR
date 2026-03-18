@@ -4,9 +4,23 @@ import logging
 from typing import List, Optional
 
 from app.clients.gemini_client import GeminiClient
+from app.config import get_settings
 from app.context.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
+
+
+def _build_session_manager():
+    """Return a Redis-backed or in-memory session manager based on config."""
+    settings = get_settings()
+    if settings.USE_REDIS:
+        from app.context.redis_session_manager import RedisSessionManager
+        mgr = RedisSessionManager(redis_url=settings.REDIS_URL)
+        if mgr.is_available:
+            logger.info("Using Redis session storage.")
+            return mgr
+        logger.warning("Redis unavailable — falling back to in-memory sessions.")
+    return SessionManager()
 
 
 class SentenceBuilder:
@@ -14,7 +28,7 @@ class SentenceBuilder:
 
     def __init__(self):
         self.gemini = GeminiClient()
-        self.sessions = SessionManager()
+        self.sessions = _build_session_manager()
         logger.info("SentenceBuilder initialized")
 
     async def process(
@@ -25,7 +39,7 @@ class SentenceBuilder:
         language: str = "ru",
     ) -> dict:
         session = self.sessions.get_session(session_id)
-        if not session:
+        if session is None:
             self.sessions.create_session_with_id(session_id)
 
         if context is None:
@@ -68,9 +82,13 @@ class SentenceBuilder:
 
     def get_session_context(self, session_id: str) -> dict:
         session = self.sessions.get_session(session_id)
-        if session:
+        if session is None:
+            return {"error": "Session not found"}
+        # SessionManager returns a Session dataclass; RedisSessionManager
+        # returns a plain dict — handle both.
+        if hasattr(session, "to_dict"):
             return session.to_dict()
-        return {"error": "Session not found"}
+        return session
 
     def clear_session(self, session_id: str) -> bool:
         return self.sessions.delete_session(session_id)

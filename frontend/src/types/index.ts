@@ -1,3 +1,6 @@
+// Normalized landmark point [x, y] relative to wrist, unit-scaled
+export type Landmark = [number, number];
+
 // WebSocket message from backend
 export interface DetectionResult {
   type: 'detection' | 'translation' | 'error' | 'command';
@@ -5,7 +8,7 @@ export interface DetectionResult {
     sign?: string | null;
     confidence?: number;
     hand_detected?: boolean;
-    landmarks?: [number, number][];
+    landmarks?: Landmark[];
     timestamp?: number;
     status?: string;
     session_id?: string;
@@ -14,6 +17,7 @@ export interface DetectionResult {
     signs?: string[];
     processing_time_ms?: number;
     fallback?: boolean;
+    language?: string;
   };
 }
 
@@ -33,6 +37,7 @@ export interface CommandMessage {
   payload: {
     action: 'start' | 'stop' | 'clear';
     session_id: string;
+    language?: string;
   };
 }
 
@@ -56,6 +61,14 @@ export interface SessionContext {
   }>;
 }
 
+export type Language = 'en' | 'ru' | 'kz';
+
+export const LANGUAGE_OPTIONS: { value: Language; label: string; flag: string }[] = [
+  { value: 'en', label: 'English', flag: '🇬🇧' },
+  { value: 'ru', label: 'Russian', flag: '🇷🇺' },
+  { value: 'kz', label: 'Kazakh', flag: '🇰🇿' },
+];
+
 // App state
 export interface AppState {
   // Connection state
@@ -68,6 +81,7 @@ export interface AppState {
   detectedSigns: string[];
   currentSentence: string;
   confidence: number;
+  language: Language;
   
   // History
   translationHistory: Array<{
@@ -84,6 +98,7 @@ export interface AppState {
   addDetectedSign: (sign: string) => void;
   setCurrentSentence: (sentence: string) => void;
   setConfidence: (confidence: number) => void;
+  setLanguage: (language: Language) => void;
   clearSession: () => void;
   addToHistory: (item: { signs: string[]; translation: string; timestamp: number }) => void;
 }
@@ -106,6 +121,10 @@ export interface UseWebSocketReturn {
   disconnect: () => void;
   sendFrame: (image: string) => void;
   sendCommand: (action: 'start' | 'stop' | 'clear') => void;
+  clearDetection: () => void;
   lastMessage: DetectionResult | null;
+  lastSign: string | null;
+  lastConfidence: number;
+  lastLandmarks: Landmark[] | null;
   error: string | null;
 }

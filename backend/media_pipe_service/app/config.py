@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     LLM_SERVICE_URL: str = "http://localhost:8002"
     
     # Sign buffer settings
-    SIGN_BUFFER_TIMEOUT_MS: int = 2000  # Time before committing sign sequence
+    SIGN_BUFFER_TIMEOUT_MS: int = 1500  # Time before committing sign sequence
     MIN_SEQUENCE_LENGTH: int = 2
     
     class Config:

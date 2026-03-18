@@ -65,6 +65,9 @@ class TestSignBuffer:
         self.buffer.add_sign(self.session_id, "H", 0.9)
         self.buffer.add_sign(self.session_id, "E", 0.9)
         self.buffer.add_sign(self.session_id, "L", 0.9)
+        # Simulate debounce window expiry before repeating the same letter
+        session = self.buffer.get_or_create_session(self.session_id)
+        session.last_sign_time = time.time() - 1
         self.buffer.add_sign(self.session_id, "L", 0.9)
         self.buffer.add_sign(self.session_id, "O", 0.9)
         

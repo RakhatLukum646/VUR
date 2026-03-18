@@ -1,91 +1,210 @@
-# 🤟 AI Sign Language Translator
+# AI Sign Language Translator
 
-Real-time sign language to text translation using MediaPipe and Google Gemini.
+Real-time sign language to text translation using MediaPipe, Google Gemini, and a trained MLP classifier.
 
 ## Team
 
 | Role | Name | Module |
 |------|------|--------|
 | Frontend | Ulzhan | React + WebSocket Client |
-| Backend | Vlad | MediaPipe Service (port 8001) |
-| Backend/Teamlead | Rakhat (Ans_n0202) | LLM Service (port 8002) |
+| Backend | Vlad | MediaPipe Service |
+| Backend / Teamlead | Rakhat | LLM Service + Architecture |
 
-## Project Status
+---
 
-| Component | Status | Port |
-|-----------|--------|------|
-| ✅ MediaPipe Service | **COMPLETE** - Vlad | 8001 |
-| ✅ LLM Service | **COMPLETE** - Rakhat | 8002 |
-| ⏳ Frontend WebSocket | **PENDING** - Ulzhan | 5173 |
-| ⏳ Integration Testing | **PENDING** | - |
+## Architecture
+
+All traffic goes through a single **Nginx API Gateway** on port 80.
+
+```
+Browser
+  │
+  ▼
+┌─────────────────────────────────────┐
+│   Nginx Gateway  :80                │
+│  /        → Frontend (React)        │
+│  /ws/     → MediaPipe (WebSocket)   │
+│  /api/v1/ → LLM Service (REST)      │
+│  /auth/   → Auth Service (REST)     │
+└────────────────┬────────────────────┘
+                 │ internal Docker network
+    ┌────────────┼─────────────┐
+    ▼            ▼             ▼
+ Frontend    MediaPipe       LLM
+  :80          :8001         :8002
+                 │
+                 └──(HTTP)──► LLM :8002
+                              (Gemini API)
+```
+
+---
 
 ## Services
 
-### 1. MediaPipe Service (Vlad) - Port 8001
+### Frontend — React + TypeScript
+- Live camera feed with **hand skeleton overlay** drawn on canvas
+- Real-time detected signs stream
+- Gemini-powered sentence translation
+- **Language selector** (English / Russian / Kazakh)
+- **Toast notifications** for errors, fallback mode, and translation results
+- Auth: register, login, 2FA, email verification, profile management
+
+### MediaPipe Service — Port 8001
 - FastAPI WebSocket server
-- Real-time hand landmark detection (21 points)
-- Gesture classifier (ASL A-Z, 0-9)
-- Sign sequence buffer with debouncing
+- Real-time hand landmark detection (21 points via MediaPipe)
+- **ML-based gesture classifier** (MLP, falls back to heuristics)
+- Smart sign segmentation: auto-commits sequence when hand drops (rest detection)
+- Sign sequence buffer with 500 ms debounce
 - WebSocket: `ws://localhost:8001/ws/sign-detection`
 
-### 2. LLM Service (Rakhat) - Port 8002
+### LLM Service — Port 8002
 - Google Gemini API integration
-- Natural language translation from sign sequences
-- Session-based context management
-- REST API endpoints
-- Health check: `http://localhost:8002/health`
-- API Docs: `http://localhost:8002/docs`
+- Converts raw sign sequences / fingerspelling into grammatically correct sentences
+- Multi-language support: English, Russian, Kazakh
+- Session-based conversation context
+- Graceful fallback when Gemini API is unavailable
+- Docs: `http://localhost:8002/docs`
 
-### 3. Frontend (Ulzhan) - Port 5173
-- React + TypeScript
-- WebSocket client for real-time translation
-- Camera component with MediaDevices API
-- **PENDING**: WebSocket connection to MediaPipe
+### Auth Service — Port 8003
+- JWT authentication
+- Email verification
+- Two-factor authentication (TOTP)
+- User profile management
+
+---
 
 ## Quick Start
 
+### Docker (recommended)
+
 ```bash
-# 1. MediaPipe Service (Terminal 1)
+# 1. Copy and fill in secrets
+cp .env.example .env
+# Set GEMINI_API_KEY, MongoDB credentials, email settings
+
+# 2. Start everything
+docker compose up --build
+
+# App is available at http://localhost
+```
+
+### Local Development
+
+```bash
+# Copy local dev env vars for the frontend
+cp frontend/.env.local.example frontend/.env.local
+# Edit .env.local and set your local service URLs
+
+# Terminal 1 — Auth Service
+cd backend/auth_service
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8003
+
+# Terminal 2 — MediaPipe Service
 cd backend/media_pipe_service
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8001
 
-# 2. LLM Service (Terminal 2)
+# Terminal 3 — LLM Service
 cd backend/llm_service
-cp .env.example .env  # Add GEMINI_API_KEY
-touch .env  # Create empty if no key (fallback mode)
+cp .env.example .env   # add GEMINI_API_KEY
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8002
 
-# 3. Frontend (Terminal 3)
+# Terminal 4 — Frontend
 cd frontend
 npm install
-npm run dev
+npm run dev            # http://localhost:5173
 ```
 
-## API Flow
+Or with Make:
 
-```
-┌──────────┐    WebSocket     ┌──────────────┐    HTTP     ┌──────────┐
-│ Frontend │ ───────────────► │ MediaPipe    │ ──────────► │ LLM      │
-│          │ ◄─────────────── │ (Port 8001)  │            │ (Port    │
-│ (React)  │   Sign detected  │              │            │  8002)   │
-└──────────┘                  └──────────────┘            └──────────┘
+```bash
+make dev
 ```
 
-## Next Steps
+---
 
-1. **Ulzhan**: Build WebSocket client in Frontend
-   - Connect to `ws://localhost:8001/ws/sign-detection`
-   - Send camera frames
-   - Display detected signs
-   - Call LLM API for translation
+## ML Gesture Classifier
 
-2. **Integration Testing**
-   - Test full flow: Camera → MediaPipe → LLM → Display
+The MediaPipe service ships with a geometry-based heuristic classifier as fallback.  
+To train the full MLP model on your own data:
 
-## Links
+```bash
+cd backend/media_pipe_service
 
-- Repository: https://github.com/rakhatdiploma/iitudiplomas
+# 1. Collect training samples for each sign (repeat for every letter/gesture)
+python scripts/record_training_data.py --label A --samples 200
+python scripts/record_training_data.py --label B --samples 200
+# ...
+
+# 2. Train the MLP classifier
+python scripts/train_classifier.py
+
+# The trained model is saved to data/gesture_model.pkl
+# The service loads it automatically on startup.
+```
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the project root (or use `.env.example` as a template):
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | Yes | Google Gemini API key |
+| `MONGODB_URL` | Yes | MongoDB connection string |
+| `MONGODB_DB` | Yes | MongoDB database name |
+| `JWT_SECRET` | Yes | Secret for signing JWT tokens |
+| `EMAIL_HOST` | Yes | SMTP host for verification emails |
+| `EMAIL_PORT` | Yes | SMTP port |
+| `EMAIL_USER` | Yes | SMTP username |
+| `EMAIL_PASSWORD` | Yes | SMTP password |
+
+For local frontend development, copy `frontend/.env.local.example` to `frontend/.env.local`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_LLM_URL` | `http://localhost:8002` | LLM service URL |
+| `VITE_AUTH_URL` | `http://localhost:8003` | Auth service URL |
+| `VITE_WS_URL` | `ws://localhost:8001` | MediaPipe WebSocket URL |
+
+---
+
+## How to Use
+
+1. Open `http://localhost` and sign in (or register)
+2. Allow camera access when prompted
+3. Select your **target language** (English / Russian / Kazakh)
+4. Click **Start Translation**
+5. Make ASL hand gestures — the skeleton overlay confirms the camera sees your hand
+6. Detected signs appear in the panel in real-time
+7. Translation fires automatically when you lower your hand (rest detection), or click **Translate Signs to Sentence**
+8. Click **Clear** to start a new session
+
+---
+
+## Project Status
+
+| Component | Status |
+|-----------|--------|
+| Auth Service | Complete |
+| MediaPipe Hand Detection | Complete |
+| Gesture Classifier (heuristic) | Complete |
+| Gesture Classifier (ML/MLP) | Complete — requires training data |
+| LLM Translation (Gemini) | Complete |
+| Frontend UI | Complete |
+| Landmark Overlay | Complete |
+| Language Selection | Complete |
+| API Gateway (Nginx) | Complete |
+| Docker Compose | Complete |
+
+---
+
+## Repository
+
+https://github.com/RakhatLukum646/VUR

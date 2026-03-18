@@ -47,12 +47,14 @@ class HandDetector:
         except Exception as e:
             raise ValueError(f"Image decoding error: {str(e)}")
     
-    def detect(self, base64_image: str) -> Tuple[bool, Optional[List], Optional[str], float]:
+    def detect(self, base64_image: str) -> Tuple[bool, Optional[List], Optional[List], Optional[str], float]:
         """
         Detect hand landmarks in image.
-        
+
         Returns:
-            Tuple of (hand_detected, landmarks, handedness, confidence)
+            Tuple of (hand_detected, normalized_landmarks, screen_landmarks, handedness, confidence)
+            - normalized_landmarks: wrist-relative unit-scaled coords for classifier
+            - screen_landmarks: raw 0-1 image coords [[x, y], ...] for overlay drawing
         """
         try:
             image = self.decode_frame(base64_image)
@@ -61,27 +63,28 @@ class HandDetector:
             results = self.hands.process(image)
             
             if not results.multi_hand_landmarks:
-                return False, None, None, 0.0
+                return False, None, None, None, 0.0
             
             # Get first hand
             hand_landmarks = results.multi_hand_landmarks[0]
             handedness = results.multi_handedness[0].classification[0].label
             confidence = results.multi_handedness[0].classification[0].score
             
-            # Extract 21 landmarks [x, y, z]
-            landmarks = []
+            # Raw 0-1 screen coordinates for frontend overlay
+            screen_landmarks = []
+            raw_for_norm = []
             for landmark in hand_landmarks.landmark:
-                landmarks.append([
-                    landmark.x,  # Normalized 0-1
-                    landmark.y,  # Normalized 0-1
-                    landmark.z   # Relative depth
-                ])
-            
-            return True, landmarks, handedness, confidence
+                screen_landmarks.append([landmark.x, landmark.y])
+                raw_for_norm.append([landmark.x, landmark.y, landmark.z])
+
+            # Normalize to wrist-relative, unit-scaled coordinates for classifier
+            normalized_landmarks = self.normalize_landmarks(raw_for_norm)
+
+            return True, normalized_landmarks, screen_landmarks, handedness, confidence
             
         except Exception as e:
             print(f"Detection error: {e}")
-            return False, None, None, 0.0
+            return False, None, None, None, 0.0
     
     def normalize_landmarks(self, landmarks: List[List[float]]) -> List[List[float]]:
         """
@@ -111,15 +114,30 @@ class HandDetector:
     
     def draw_landmarks(self, image: np.ndarray, landmarks: List) -> np.ndarray:
         """Draw landmarks on image for visualization."""
-        # Convert landmarks back to MediaPipe format
-        hand_landmarks = self.mp_hands.HandLandmark
-        
-        # Create a copy for drawing
         annotated_image = image.copy()
-        
-        # Draw using MediaPipe drawing utils
-        mp_landmarks = self.mp_hands.HandLandmark
-        
+        h, w = annotated_image.shape[:2]
+
+        # Convert flat list back to pixel coordinates and draw dots + connections
+        points = []
+        for lm in landmarks:
+            px = int(lm[0] * w)
+            py = int(lm[1] * h)
+            points.append((px, py))
+            cv2.circle(annotated_image, (px, py), 4, (0, 255, 0), -1)
+
+        # Draw finger bone connections
+        connections = [
+            (0, 1), (1, 2), (2, 3), (3, 4),        # thumb
+            (0, 5), (5, 6), (6, 7), (7, 8),          # index
+            (0, 9), (9, 10), (10, 11), (11, 12),     # middle
+            (0, 13), (13, 14), (14, 15), (15, 16),   # ring
+            (0, 17), (17, 18), (18, 19), (19, 20),   # pinky
+            (5, 9), (9, 13), (13, 17),               # knuckle bar
+        ]
+        for start, end in connections:
+            if start < len(points) and end < len(points):
+                cv2.line(annotated_image, points[start], points[end], (0, 200, 255), 2)
+
         return annotated_image
     
     def close(self):

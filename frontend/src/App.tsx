@@ -1,11 +1,16 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { UserCircle, LogOut } from 'lucide-react';
+import { useAuthStore } from './store/useAuthStore';
 import { Hand, Github, BookOpen } from 'lucide-react';
 import { Camera } from './components/Camera';
 import type { CameraRef } from './components/Camera';
 import { TranslationPanel } from './components/TranslationPanel';
 import { Controls } from './components/Controls';
 import { StatusBar } from './components/StatusBar';
+import { ToastContainer } from './components/Toast';
 import { useWebSocket } from './hooks/useWebSocket';
+import { useToast } from './hooks/useToast';
 import { useAppStore } from './store/useAppStore';
 import { translateSigns, clearSession as clearSessionApi } from './services/api';
 import './App.css';
@@ -16,23 +21,47 @@ function App() {
   const accumulatedSignsRef = useRef<string[]>([]);
   const wsRef = useRef<ReturnType<typeof useWebSocket> | null>(null);
 
-  const [lastSign, setLastSign] = useState<string | null>(null);
-  const [lastConfidence, setLastConfidence] = useState(0);
+
+  const { toasts, dismiss, toast } = useToast();
 
   const ws = useWebSocket();
-  wsRef.current = ws;
+
+  useEffect(() => {
+    wsRef.current = ws;
+  });
+
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const {
     connect,
     disconnect,
+    clearDetection,
     lastMessage,
+    lastSign,
+    lastConfidence,
+    lastLandmarks,
     sendCommand,
+    error: wsError,
   } = ws;
+
+  // Surface WebSocket connection errors as toasts
+  useEffect(() => {
+    if (wsError) {
+      toast.error('Connection failed', wsError);
+    }
+  }, [wsError, toast]);
 
   const {
     isTranslating,
     sessionId,
     detectedSigns,
+    language,
     startTranslation,
     stopTranslation,
     addDetectedSign,
@@ -46,11 +75,9 @@ function App() {
     if (!lastMessage) return;
 
     if (lastMessage.type === 'detection') {
-      const { sign, confidence } = lastMessage.payload;
-      if (sign) {
-        setLastSign(sign);
-        setLastConfidence(confidence || 0);
+      const { sign } = lastMessage.payload;
 
+      if (sign) {
         const lastAdded =
           accumulatedSignsRef.current[accumulatedSignsRef.current.length - 1];
         if (sign !== lastAdded) {
@@ -61,7 +88,7 @@ function App() {
     }
 
     if (lastMessage.type === 'translation') {
-      const { translation, signs } = lastMessage.payload;
+      const { translation, signs, fallback } = lastMessage.payload;
       if (translation) {
         setCurrentSentence(translation);
         addToHistory({
@@ -70,13 +97,26 @@ function App() {
           timestamp: Date.now(),
         });
         accumulatedSignsRef.current = [];
+
+        if (fallback) {
+          toast.warning(
+            'Offline mode',
+            'Gemini API unavailable — showing raw sign sequence as fallback.'
+          );
+        }
       }
     }
-  }, [lastMessage, addDetectedSign, setCurrentSentence, addToHistory]);
+
+    if (lastMessage.type === 'error') {
+      const { message } = lastMessage.payload;
+      toast.error('Service error', message || 'An unexpected error occurred.');
+    }
+  }, [lastMessage, addDetectedSign, setCurrentSentence, addToHistory, toast]);
 
   const handleStart = useCallback(() => {
     startTranslation();
     connect();
+    toast.info('Translation started', 'Make sign gestures in front of the camera.');
 
     if (cameraRef.current) {
       frameIntervalRef.current = setInterval(() => {
@@ -86,7 +126,7 @@ function App() {
         }
       }, 100); // ~10 FPS
     }
-  }, [startTranslation, connect]);
+  }, [startTranslation, connect, toast]);
 
   const handleStop = useCallback(() => {
     stopTranslation();
@@ -107,17 +147,19 @@ function App() {
 
     sendCommand('clear');
     clearStore();
+    clearDetection();
     accumulatedSignsRef.current = [];
-    setLastSign(null);
-    setLastConfidence(0);
-  }, [sessionId, sendCommand, clearStore]);
+  }, [sessionId, sendCommand, clearStore, clearDetection]);
 
   const handleProcessTranslation = useCallback(async () => {
     const signs = accumulatedSignsRef.current;
-    if (signs.length === 0) return;
+    if (signs.length === 0) {
+      toast.warning('No signs detected', 'Make some gestures first before translating.');
+      return;
+    }
 
     try {
-      const result = await translateSigns(signs, sessionId, undefined, 'ru');
+      const result = await translateSigns(signs, sessionId, undefined, language);
       setCurrentSentence(result.translation);
 
       addToHistory({
@@ -126,11 +168,28 @@ function App() {
         timestamp: Date.now(),
       });
 
+      if (result.fallback) {
+        toast.warning(
+          'Offline mode',
+          'Gemini API unavailable — showing raw sign sequence as fallback.'
+        );
+      } else {
+        toast.success('Translation complete');
+      }
+
       accumulatedSignsRef.current = [];
-    } catch (error) {
-      console.error('Translation failed:', error);
+    } catch (err) {
+      console.error('Translation failed:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Translation failed', msg);
+
+      // Fallback: show raw signs as the "translation"
+      const rawFallback = signs.join(' ');
+      setCurrentSentence(rawFallback);
+      addToHistory({ signs: [...signs], translation: rawFallback, timestamp: Date.now() });
+      accumulatedSignsRef.current = [];
     }
-  }, [sessionId, setCurrentSentence, addToHistory]);
+  }, [sessionId, language, setCurrentSentence, addToHistory, toast]);
 
   useEffect(() => {
     return () => {
@@ -143,6 +202,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -171,6 +232,7 @@ function App() {
                 <Github className="w-5 h-5" />
                 <span className="hidden sm:inline">GitHub</span>
               </a>
+
               <a
                 href="/docs"
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -178,6 +240,24 @@ function App() {
                 <BookOpen className="w-5 h-5" />
                 <span className="hidden sm:inline">Docs</span>
               </a>
+
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <UserCircle className="w-5 h-5 text-blue-600" />
+                <span className="hidden md:inline text-sm text-gray-700">
+                  {user?.name || 'Profile'}
+                </span>
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors text-gray-700 hover:text-red-600"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden md:inline text-sm">Logout</span>
+              </button>
             </div>
           </div>
         </div>
@@ -191,7 +271,7 @@ function App() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="space-y-4">
-            <Camera ref={cameraRef} isTranslating={isTranslating} />
+            <Camera ref={cameraRef} isTranslating={isTranslating} landmarks={lastLandmarks} />
 
             {detectedSigns.length > 0 && (
               <button
@@ -250,7 +330,7 @@ function App() {
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-            <p>IITU Diploma Project &bull; Team: Ulzhan, Vlad, Rakhat</p>
+            <p>AITU Diploma Project &bull; Team: Ulzhan, Vlad, Rakhat</p>
             <p>
               Session ID: <span className="font-mono">{sessionId}</span>
             </p>

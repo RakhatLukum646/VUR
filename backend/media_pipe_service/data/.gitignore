@@ -1,0 +1,4 @@
+# Ignore large training CSVs and compiled models — track only the placeholder
+*.csv
+*.pkl
+!.gitignore
