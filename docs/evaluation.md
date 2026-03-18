@@ -65,6 +65,33 @@ For a diploma defense, include these generated artifacts in the appendix:
 - a short note on hardware and runtime environment
 - 3 to 5 representative failure cases with explanation
 
+## Human Evaluation Protocol
+
+For a stronger product-grade report, add a short human evaluation pass:
+
+1. Recruit at least 5 participants with varied lighting, distance, and device quality.
+2. Ask each participant to complete the same fixed set of signs and short phrases.
+3. Record:
+   - recognition success rate
+   - first-attempt success rate
+   - average time to successful translation
+   - common failure categories such as framing, lighting, or ambiguous gesture shape
+4. Capture qualitative feedback on clarity of the on-screen guidance.
+
+Recommended summary table:
+- participant/device
+- phrase set
+- successful translations / total
+- average retries
+- comments
+
+## Privacy and Limitations
+
+- Camera frames are used for live processing and should not be retained beyond the active session unless explicit consent is added.
+- Current recognition coverage is limited to the supported sign inventory in the classifier, so unsupported gestures should be documented as out of scope.
+- The system can be sensitive to framing, hand size in frame, lighting quality, and signer variation.
+- If the evaluation dataset uses only one or two signers, report that as a generalization risk.
+
 ## Current Baseline
 
 Without a populated landmark dataset, classifier metrics cannot be generated yet.

@@ -15,6 +15,13 @@ export function useWebSocket(): UseWebSocketReturn {
   const [lastSign, setLastSign] = useState<string | null>(null);
   const [lastConfidence, setLastConfidence] = useState(0);
   const [lastLandmarks, setLastLandmarks] = useState<[number, number][] | null>(null);
+  const [lastGuidance, setLastGuidance] = useState<string | null>(
+    'Show one hand in the frame to start detection.'
+  );
+  const [lastFrameQuality, setLastFrameQuality] = useState(0);
+  const [lastStability, setLastStability] = useState(0);
+  const [sequenceLength, setSequenceLength] = useState(0);
+  const [handDetected, setHandDetected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { sessionId, language, setConnected, setConnectionStatus } = useAppStore();
@@ -47,9 +54,23 @@ export function useWebSocket(): UseWebSocketReturn {
           const data: DetectionResult = JSON.parse(event.data);
           setLastMessage(data);
           if (data.type === 'detection') {
-            const { sign, confidence, hand_detected, landmarks } = data.payload;
+            const {
+              sign,
+              confidence,
+              hand_detected,
+              landmarks,
+              guidance,
+              frame_quality,
+              stability,
+              sequence_length,
+            } = data.payload;
             setLastSign(sign ?? null);
             setLastConfidence(confidence ?? 0);
+            setLastGuidance(guidance ?? null);
+            setLastFrameQuality(frame_quality ?? 0);
+            setLastStability(stability ?? 0);
+            setSequenceLength(sequence_length ?? 0);
+            setHandDetected(Boolean(hand_detected));
             if (hand_detected && landmarks) {
               setLastLandmarks(landmarks as [number, number][]);
             } else if (!hand_detected) {
@@ -147,6 +168,11 @@ export function useWebSocket(): UseWebSocketReturn {
     setLastSign(null);
     setLastConfidence(0);
     setLastLandmarks(null);
+    setLastGuidance('Show one hand in the frame to start detection.');
+    setLastFrameQuality(0);
+    setLastStability(0);
+    setSequenceLength(0);
+    setHandDetected(false);
   }, []);
 
   // Cleanup on unmount
@@ -170,6 +196,11 @@ export function useWebSocket(): UseWebSocketReturn {
     lastSign,
     lastConfidence,
     lastLandmarks,
+    lastGuidance,
+    lastFrameQuality,
+    lastStability,
+    sequenceLength,
+    handDetected,
     error,
   };
 }

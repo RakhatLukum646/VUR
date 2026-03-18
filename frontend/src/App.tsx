@@ -52,6 +52,11 @@ function App() {
     lastSign,
     lastConfidence,
     lastLandmarks,
+    lastGuidance,
+    lastFrameQuality,
+    lastStability,
+    sequenceLength,
+    handDetected,
     sendCommand,
     error: wsError,
   } = ws;
@@ -272,7 +277,10 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <StatusBar />
+          <StatusBar
+            detectionGuidance={lastGuidance}
+            frameQuality={lastFrameQuality}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -292,6 +300,11 @@ function App() {
           <TranslationPanel
             lastSign={lastSign}
             confidence={lastConfidence}
+            guidance={lastGuidance}
+            frameQuality={lastFrameQuality}
+            stability={lastStability}
+            sequenceLength={sequenceLength}
+            handDetected={handDetected}
           />
         </div>
 
@@ -316,20 +329,33 @@ function App() {
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold">3.</span>
-              <span>Make sign language gestures in front of the camera</span>
+              <span>
+                Keep one hand centered, well lit, and large enough in the frame
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold">4.</span>
+              <span>
+                Hold each sign briefly until the app marks it as stable, then pause
+                between words
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-bold">5.</span>
               <span>
                 Click "Translate Signs to Sentence" to get a grammatically
                 correct translation via Gemini
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="font-bold">5.</span>
+              <span className="font-bold">6.</span>
               <span>Click "Clear" to start a new session</span>
             </li>
           </ol>
+          <p className="mt-4 text-sm text-blue-900">
+            Privacy note: camera frames are processed for live recognition and are
+            not stored by the frontend.
+          </p>
         </div>
       </main>
 

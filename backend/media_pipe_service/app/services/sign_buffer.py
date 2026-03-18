@@ -9,6 +9,7 @@ from app.config import settings
 # Number of consecutive no-hand frames required to treat as a rest position.
 # At ~10 fps from the frontend, 3 frames ≈ 300 ms of hands-down.
 REST_FRAMES_THRESHOLD = 3
+STABILITY_FRAMES_THRESHOLD = 2
 
 
 @dataclass
@@ -21,6 +22,9 @@ class SessionBuffer:
     sign_count: Dict[str, int] = field(default_factory=dict)
     # Consecutive frames with no hand detected
     no_hand_streak: int = 0
+    pending_sign: Optional[str] = None
+    pending_count: int = 0
+    pending_confidence_total: float = 0.0
 
 
 class SignBuffer:
@@ -43,7 +47,11 @@ class SignBuffer:
         Returns True if the buffer should now be committed (rest boundary reached).
         """
         buffer = self.buffers.get(session_id)
-        if not buffer or len(buffer.signs) < self.min_sequence_length:
+        if not buffer:
+            return False
+
+        self._reset_pending(buffer)
+        if len(buffer.signs) < self.min_sequence_length:
             return False
 
         buffer.no_hand_streak += 1
@@ -71,16 +79,30 @@ class SignBuffer:
             time_since_last = (current_time - buffer.last_sign_time) * 1000
             if time_since_last < 500:  # 500ms debounce
                 return False
+
+        if buffer.pending_sign == sign:
+            buffer.pending_count += 1
+            buffer.pending_confidence_total += confidence
+        else:
+            buffer.pending_sign = sign
+            buffer.pending_count = 1
+            buffer.pending_confidence_total = confidence
+
+        if buffer.pending_count < STABILITY_FRAMES_THRESHOLD:
+            return False
+
+        stable_confidence = buffer.pending_confidence_total / buffer.pending_count
         
         buffer.signs.append({
             "sign": sign,
-            "confidence": confidence,
+            "confidence": stable_confidence,
             "timestamp": current_time
         })
         
         buffer.last_sign = sign
         buffer.last_sign_time = current_time
         buffer.sign_count[sign] = buffer.sign_count.get(sign, 0) + 1
+        self._reset_pending(buffer)
         
         return True
     
@@ -117,6 +139,7 @@ class SignBuffer:
         buffer.last_sign = None
         buffer.sign_count.clear()
         buffer.no_hand_streak = 0
+        self._reset_pending(buffer)
         
         return sequence
     
@@ -134,4 +157,15 @@ class SignBuffer:
             "unique_signs": len(buffer.sign_count),
             "sign_counts": dict(buffer.sign_count),
             "no_hand_streak": buffer.no_hand_streak,
+            "pending_sign": buffer.pending_sign,
+            "stability_progress": min(
+                buffer.pending_count / STABILITY_FRAMES_THRESHOLD,
+                1.0,
+            ),
         }
+
+    @staticmethod
+    def _reset_pending(buffer: SessionBuffer) -> None:
+        buffer.pending_sign = None
+        buffer.pending_count = 0
+        buffer.pending_confidence_total = 0.0
