@@ -1,6 +1,6 @@
 """Health check endpoints."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
@@ -14,7 +14,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "media_pipe",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "1.0.0",
         "model_loaded": gesture_classifier._ml.is_available,
     }
