@@ -43,20 +43,26 @@ def client():
 
 
 def test_websocket_rejects_missing_token(client):
-    with client.websocket_connect("/ws/sign-detection") as ws:
-        # Server closes immediately with 4401 — TestClient raises on receive.
-        with pytest.raises(Exception):
-            ws.receive_text()
+    from starlette.websockets import WebSocketDisconnect
+
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/ws/sign-detection"):
+            pass
+    assert exc_info.value.code == 4401
 
 
 def test_websocket_rejects_invalid_token(client):
-    with client.websocket_connect("/ws/sign-detection?token=not-a-valid-jwt") as ws:
-        with pytest.raises(Exception):
-            ws.receive_text()
+    from starlette.websockets import WebSocketDisconnect
+
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/ws/sign-detection?token=not-a-valid-jwt"):
+            pass
+    assert exc_info.value.code == 4403
 
 
 def test_websocket_rejects_wrong_token_type(client):
     from jose import jwt
+    from starlette.websockets import WebSocketDisconnect
 
     payload = {
         "sub": "user-123",
@@ -66,9 +72,10 @@ def test_websocket_rejects_wrong_token_type(client):
         "exp": datetime.now(UTC) + timedelta(minutes=15),
     }
     token = jwt.encode(payload, "test-secret", algorithm="HS256")
-    with client.websocket_connect(f"/ws/sign-detection?token={token}") as ws:
-        with pytest.raises(Exception):
-            ws.receive_text()
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect(f"/ws/sign-detection?token={token}"):
+            pass
+    assert exc_info.value.code == 4403
 
 
 def test_websocket_accepts_valid_token_and_errors_on_unknown_type(client):
@@ -103,3 +110,53 @@ def test_websocket_frame_without_image_returns_no_hand_detection(client):
         response = json.loads(ws.receive_text())
         assert response["type"] == "detection"
         assert response["payload"]["hand_detected"] is False
+
+
+def _make_blank_frame_b64() -> str:
+    """Encode a small black frame as base64 JPEG.
+
+    Uses numpy + OpenCV, both already required by the service.  The resulting
+    image is a valid JPEG that MediaPipe can decode — it will find no hand,
+    which is the expected result for a blank frame.
+    """
+    import base64
+
+    import cv2
+    import numpy as np
+
+    frame = np.zeros((64, 64, 3), dtype=np.uint8)
+    _, buf = cv2.imencode(".jpg", frame)
+    return base64.b64encode(buf.tobytes()).decode()
+
+
+def test_websocket_frame_with_image_exercises_detection_pipeline(client):
+    """A frame carrying a valid JPEG runs the full MediaPipe decode → detect
+    → buffer path and returns a detection envelope (hand_detected=False for a
+    blank image)."""
+    token = _make_access_token()
+    with client.websocket_connect(f"/ws/sign-detection?token={token}") as ws:
+        ws.send_text(json.dumps({
+            "type": "frame",
+            "payload": {
+                "session_id": "test-session",
+                "timestamp": 0,
+                "image_data": _make_blank_frame_b64(),
+            },
+        }))
+        response = json.loads(ws.receive_text())
+        assert response["type"] == "detection"
+        assert "hand_detected" in response["payload"]
+        assert response["payload"]["hand_detected"] is False
+
+
+def test_websocket_command_clear_returns_cleared(client):
+    token = _make_access_token()
+    with client.websocket_connect(f"/ws/sign-detection?token={token}") as ws:
+        ws.send_text(json.dumps({
+            "type": "command",
+            "payload": {"action": "clear", "session_id": "test-session"},
+        }))
+        response = json.loads(ws.receive_text())
+        assert response["type"] == "command"
+        assert response["payload"]["status"] == "cleared"
+        assert response["payload"]["session_id"] == "test-session"
