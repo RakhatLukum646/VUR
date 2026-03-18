@@ -33,7 +33,10 @@ async def consume_password_reset_token(raw_token: str) -> ObjectId | None:
     if not record:
         return None
 
-    if record["expires_at"] <= datetime.now(UTC):
+    expires_at = record["expires_at"]
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    if expires_at <= datetime.now(UTC):
         return None
 
     await password_reset_tokens_collection.update_one(

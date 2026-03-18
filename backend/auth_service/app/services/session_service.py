@@ -103,8 +103,12 @@ async def get_refresh_session(refresh_token: str) -> tuple[dict, dict]:
         await revoke_all_sessions_for_user(session["user_id"])
         raise JWTError("Refresh token reuse detected — all sessions revoked")
 
-    if session.get("expires_at") and session["expires_at"] <= datetime.now(UTC):
-        raise JWTError("Refresh session expired")
+    expires_at = session.get("expires_at")
+    if expires_at is not None:
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if expires_at <= datetime.now(UTC):
+            raise JWTError("Refresh session expired")
 
     return session, payload
 

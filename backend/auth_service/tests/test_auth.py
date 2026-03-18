@@ -1,8 +1,8 @@
 import importlib
 import sys
-from copy import deepcopy
 from pathlib import Path
 
+import mongomock
 import pyotp
 import pytest
 from bson import ObjectId
@@ -11,64 +11,49 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
-class FakeInsertOneResult:
-    def __init__(self, inserted_id):
-        self.inserted_id = inserted_id
+class _AsyncCollection:
+    """Async facade over a synchronous mongomock collection.
 
+    Wraps each coroutine method expected by the service code, delegating to
+    the underlying mongomock collection synchronously.  This lets the service
+    code use ``await collection.find_one(...)`` in tests without a live MongoDB
+    instance, while still executing real MongoDB query operators (``$set``,
+    ``$lt``, ``$in``, etc.) through mongomock's query engine.
+    """
 
-class FakeCollection:
-    def __init__(self):
-        self.documents: list[dict] = []
+    def __init__(self, col):
+        self._col = col
 
-    async def find_one(self, query):
-        for document in self.documents:
-            if self._matches(document, query):
-                return deepcopy(document)
-        return None
+    async def find_one(self, query=None, *args, **kwargs):
+        return self._col.find_one(query or {}, *args, **kwargs)
 
     async def insert_one(self, document):
-        stored = deepcopy(document)
-        stored.setdefault("_id", ObjectId())
-        self.documents.append(stored)
-        return FakeInsertOneResult(stored["_id"])
+        return self._col.insert_one(document)
 
-    async def update_one(self, query, update):
-        for document in self.documents:
-            if self._matches(document, query):
-                self._apply_update(document, update)
-                return
+    async def update_one(self, query, update, **kwargs):
+        return self._col.update_one(query, update, **kwargs)
 
-    async def update_many(self, query, update):
-        for document in self.documents:
-            if self._matches(document, query):
-                self._apply_update(document, update)
+    async def update_many(self, query, update, **kwargs):
+        return self._col.update_many(query, update, **kwargs)
 
     async def delete_many(self, query):
-        self.documents = [
-            document
-            for document in self.documents
-            if not self._matches(document, query)
-        ]
+        return self._col.delete_many(query)
 
     async def create_index(self, *args, **kwargs):
-        return None
+        return self._col.create_index(*args, **kwargs)
 
-    def insert_seed(self, **document):
-        stored = deepcopy(document)
-        stored.setdefault("_id", ObjectId())
-        self.documents.append(stored)
-        return deepcopy(stored)
+    def insert_seed(self, **document) -> dict:
+        """Synchronous helper for pre-test data setup."""
+        doc = dict(document)
+        if "_id" not in doc:
+            doc["_id"] = ObjectId()
+        self._col.insert_one(doc)
+        return doc
 
-    @staticmethod
-    def _matches(document, query):
-        return all(document.get(key) == value for key, value in query.items())
-
-    @staticmethod
-    def _apply_update(document, update):
-        for key, value in update.get("$set", {}).items():
-            document[key] = value
-        for key in update.get("$unset", {}):
-            document.pop(key, None)
+    @property
+    def documents(self) -> list[dict]:
+        """Return all documents in the collection as a plain list."""
+        return list(self._col.find())
 
 
 def _reload_app_modules():
@@ -116,9 +101,10 @@ def auth_env(monkeypatch):
 def client(auth_env, monkeypatch):
     modules = _reload_app_modules()
 
-    fake_users = FakeCollection()
-    fake_sessions = FakeCollection()
-    fake_password_resets = FakeCollection()
+    mm_db = mongomock.MongoClient()["vur_test"]
+    fake_users = _AsyncCollection(mm_db["users"])
+    fake_sessions = _AsyncCollection(mm_db["auth_sessions"])
+    fake_password_resets = _AsyncCollection(mm_db["password_reset_tokens"])
     verification_emails = []
     password_reset_emails = []
 
