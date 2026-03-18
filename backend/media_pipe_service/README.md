@@ -77,6 +77,17 @@ app/
 pytest tests/
 ```
 
+## Evaluation
+
+```bash
+python scripts/evaluate_classifier.py --data data/landmarks.csv --out-dir reports
+```
+
+Outputs:
+- `reports/classifier_metrics.json`
+- `reports/confusion_matrix.csv`
+- `reports/predictions.csv`
+
 ## Environment Variables
 
 | Variable | Default | Description |
