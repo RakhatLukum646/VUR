@@ -11,7 +11,11 @@ export default function ProtectedRoute({
   children,
   requireVerified = false,
 }: Props) {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, isBootstrapped, user } = useAuthStore();
+
+  if (!isBootstrapped) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

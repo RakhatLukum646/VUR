@@ -250,7 +250,10 @@ def test_resend_verification_works_without_authentication(client):
     )
     assert len(client["verification_emails"]) == 1
     updated_user = client["users"].documents[0]
-    assert updated_user["verification_token"] == client["verification_emails"][0]["token"]
+    assert (
+        updated_user["verification_token"]
+        == client["verification_emails"][0]["token"]
+    )
     assert updated_user["verification_token"] != "old-token"
 
 
@@ -264,15 +267,18 @@ def test_login_sets_httponly_cookies_and_creates_session(client):
 
     assert response.status_code == 200
     data = response.json()
+    access_cookie = response.cookies.get("vur_access_token")
+    refresh_cookie = response.cookies.get("vur_refresh_token")
     refresh_payload = client["token_service"].decode_token(
-        data["refresh_token"],
+        refresh_cookie,
         expected_type=client["token_service"].REFRESH_TOKEN_TYPE,
     )
 
-    assert response.cookies.get("vur_access_token") == data["access_token"]
-    assert response.cookies.get("vur_refresh_token") == data["refresh_token"]
+    assert access_cookie
+    assert refresh_cookie
     assert "HttpOnly" in response.headers["set-cookie"]
     assert data["user"]["id"] == str(user["_id"])
+    assert data["token_type"] == "session"
     assert len(client["sessions"].documents) == 1
     assert client["sessions"].documents[0]["jti"] == refresh_payload["jti"]
     assert client["sessions"].documents[0]["revoked_at"] is None
@@ -291,7 +297,7 @@ def test_me_accepts_access_cookie_and_rejects_refresh_token(client):
     assert ok_response.status_code == 200
     assert ok_response.json()["email"] == "user@example.com"
 
-    refresh_token = login_response.json()["refresh_token"]
+    refresh_token = login_response.cookies.get("vur_refresh_token")
     client["client"].cookies.set("vur_access_token", refresh_token)
     bad_response = client["client"].get("/auth/me")
     assert bad_response.status_code == 401
@@ -304,7 +310,7 @@ def test_refresh_rotates_session_and_revokes_previous_token(client):
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
     )
-    old_refresh_token = login_response.json()["refresh_token"]
+    old_refresh_token = login_response.cookies.get("vur_refresh_token")
     old_refresh_payload = client["token_service"].decode_token(
         old_refresh_token,
         expected_type=client["token_service"].REFRESH_TOKEN_TYPE,
@@ -313,7 +319,7 @@ def test_refresh_rotates_session_and_revokes_previous_token(client):
     refresh_response = client["client"].post("/auth/refresh")
 
     assert refresh_response.status_code == 200
-    new_refresh_token = refresh_response.json()["refresh_token"]
+    new_refresh_token = refresh_response.cookies.get("vur_refresh_token")
     assert new_refresh_token != old_refresh_token
 
     new_refresh_payload = client["token_service"].decode_token(

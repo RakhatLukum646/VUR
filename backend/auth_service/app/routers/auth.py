@@ -78,9 +78,7 @@ async def _issue_session(user: dict, request: Request, response: Response) -> di
     await persist_refresh_session(user["_id"], refresh_token, request)
     set_auth_cookies(response, access_token, refresh_token)
     return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
+        "token_type": "session",
         "access_expires_in": settings.access_token_expire_minutes * 60,
         "refresh_expires_in": settings.refresh_token_expire_days * 24 * 60 * 60,
         "user": _public_user(user),

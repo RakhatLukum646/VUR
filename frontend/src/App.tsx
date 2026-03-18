@@ -13,6 +13,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useToast } from './hooks/useToast';
 import { useAppStore } from './store/useAppStore';
 import { translateSigns, clearSession as clearSessionApi } from './services/api';
+import { logoutUser } from './services/authApi';
 import './App.css';
 
 function App() {
@@ -33,7 +34,12 @@ function App() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // Clear local auth state even if the backend session is already gone.
+    }
     logout();
     navigate('/login');
   };

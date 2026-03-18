@@ -1,186 +1,160 @@
-import { useAuthStore } from '../store/useAuthStore';
+import type {
+  LoginRequest,
+  MessageResponse,
+  RecoveryCodesResponse,
+  SessionResponse,
+  TwoFactorSetupResponse,
+  User,
+} from '../types/auth';
 
-// In Docker the Nginx gateway forwards /auth/ to the auth service.
-// In local dev set VITE_AUTH_URL=http://localhost:8003 in .env.local.
 const AUTH_API_URL = import.meta.env.VITE_AUTH_URL ?? '';
 
-export interface RegisterRequest {
+interface RegisterRequest {
   name: string;
   email: string;
   password: string;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-  twofa_code?: string;
-}
-
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  is_verified?: boolean;
-  two_factor_enabled?: boolean;
-}
-
-export interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  access_expires_in: number;
-  refresh_expires_in: number;
-  user: AuthUser;
-}
-
-export interface RefreshTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  access_expires_in: number;
-  refresh_expires_in: number;
-  user: AuthUser;
 }
 
 interface ApiError {
   detail?: string;
-}
-
-function getAuthHeaders(token: string, headers?: HeadersInit) {
-  return {
-    ...(headers ?? {}),
-    Authorization: `Bearer ${token}`,
-  };
+  message?: string;
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return {} as T;
+  }
+
   return response.json() as Promise<T>;
 }
 
-export async function refreshAccessToken(
-  refreshToken: string
-): Promise<RefreshTokenResponse> {
-  const response = await fetch(`${AUTH_API_URL}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
-
-  const result = await parseJson<RefreshTokenResponse | { detail?: string }>(response);
-  if (!response.ok) {
-    throw new Error((result as ApiError).detail || 'Failed to refresh session');
-  }
-
-  return result as RefreshTokenResponse;
+function buildUrl(path: string) {
+  return `${AUTH_API_URL}${path}`;
 }
 
-async function ensureFreshToken(): Promise<string> {
-  const { token, refreshToken, updateTokens, updateUser, logout } =
-    useAuthStore.getState();
-
-  if (!token) {
-    throw new Error('Not authenticated');
-  }
-
-  if (!refreshToken) {
-    logout();
-    throw new Error('Session expired');
-  }
-
-  const refreshed = await refreshAccessToken(refreshToken);
-  updateTokens(refreshed.access_token, refreshed.refresh_token);
-  updateUser(refreshed.user);
-  return refreshed.access_token;
-}
-
-async function fetchWithAuth(
+async function request<T>(
   path: string,
   init: RequestInit = {}
-): Promise<Response> {
-  const { token, logout } = useAuthStore.getState();
+): Promise<{ data: T; response: Response }> {
+  const response = await fetch(buildUrl(path), {
+    credentials: 'include',
+    ...init,
+  });
+  const data = await parseJson<T>(response);
+  return { data, response };
+}
 
-  if (!token) {
-    throw new Error('Not authenticated');
+function getErrorMessage(result: ApiError | MessageResponse, fallback: string) {
+  if ('detail' in result && result.detail) {
+    return result.detail;
   }
 
-  const run = async (authToken: string) =>
-    fetch(`${AUTH_API_URL}${path}`, {
-      ...init,
-      headers: getAuthHeaders(authToken, init.headers),
-    });
+  return result.message || fallback;
+}
 
-  let response = await run(token);
+async function refreshSession(): Promise<SessionResponse> {
+  const { data, response } = await request<SessionResponse | ApiError>(
+    '/auth/refresh',
+    {
+      method: 'POST',
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data as ApiError, 'Failed to refresh session'));
+  }
+
+  return data as SessionResponse;
+}
+
+async function requestWithSession<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
+  let { data, response } = await request<T | ApiError>(path, init);
 
   if (response.status === 401) {
-    try {
-      const freshToken = await ensureFreshToken();
-      response = await run(freshToken);
-    } catch (error) {
-      logout();
-      throw error;
-    }
+    await refreshSession();
+    ({ data, response } = await request<T | ApiError>(path, init));
   }
 
-  return response;
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data as ApiError, 'Request failed'));
+  }
+
+  return data as T;
 }
 
 export async function registerUser(data: RegisterRequest) {
-  const response = await fetch(`${AUTH_API_URL}/auth/register`, {
+  const { data: result, response } = await request<
+    { user_id: string; message: string } | ApiError
+  >('/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
 
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Registration failed');
-  return result;
-}
-
-export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
-  const response = await fetch(`${AUTH_API_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
   if (!response.ok) {
-    throw new Error(result.detail || 'Login failed');
+    throw new Error(getErrorMessage(result as ApiError, 'Registration failed'));
   }
 
-  return result;
+  return result as { user_id: string; message: string };
+}
+
+export async function loginUser(data: LoginRequest): Promise<SessionResponse> {
+  const { data: result, response } = await request<SessionResponse | ApiError>(
+    '/auth/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(result as ApiError, 'Login failed'));
+  }
+
+  return result as SessionResponse;
+}
+
+export async function logoutUser() {
+  return requestWithSession<MessageResponse>('/auth/logout', {
+    method: 'POST',
+  });
+}
+
+export async function logoutAllDevices() {
+  return requestWithSession<MessageResponse>('/auth/logout-all', {
+    method: 'POST',
+  });
+}
+
+export async function bootstrapSession(): Promise<User | null> {
+  try {
+    return await requestWithSession<User>('/auth/me');
+  } catch {
+    return null;
+  }
 }
 
 export async function getCurrentUser() {
-  const response = await fetchWithAuth('/auth/me');
-
-  const result = await parseJson<AuthUser | ApiError>(response);
-  if (!response.ok) {
-    throw new Error((result as ApiError).detail || 'Failed to fetch profile');
-  }
-  return result as AuthUser;
+  return requestWithSession<User>('/auth/me');
 }
 
 export async function updateProfileName(name: string) {
-  const response = await fetchWithAuth('/auth/profile', {
+  return requestWithSession<MessageResponse>('/auth/profile', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
   });
-
-  const result = await parseJson<{ message?: string; detail?: string }>(response);
-  if (!response.ok) throw new Error(result.detail || 'Failed to update name');
-  return result;
 }
 
 export async function changePassword(
   currentPassword: string,
   newPassword: string
 ) {
-  const response = await fetchWithAuth('/auth/password', {
+  return requestWithSession<MessageResponse>('/auth/password', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -188,54 +162,101 @@ export async function changePassword(
       new_password: newPassword,
     }),
   });
-
-  const result = await parseJson<{ message?: string; detail?: string }>(response);
-  if (!response.ok) throw new Error(result.detail || 'Failed to change password');
-  return result;
 }
 
-export async function verifyEmail(tokenValue: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/verify-email`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: tokenValue }),
-  });
+export async function verifyEmail(token: string) {
+  const { data, response } = await request<MessageResponse | ApiError>(
+    '/auth/verify-email',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }
+  );
 
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Email verification failed');
-  return result;
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data as ApiError, 'Email verification failed'));
+  }
+
+  return data as MessageResponse;
 }
 
-export async function resendVerification() {
-  const response = await fetchWithAuth('/auth/resend-verification', {
-    method: 'POST',
-  });
+export async function resendVerification(email: string) {
+  const { data, response } = await request<MessageResponse | ApiError>(
+    '/auth/resend-verification',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }
+  );
 
-  const result = await parseJson<{ message?: string; detail?: string }>(response);
-  if (!response.ok) throw new Error(result.detail || 'Failed to resend email');
-  return result;
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(data as ApiError, 'Failed to resend verification email')
+    );
+  }
+
+  return data as MessageResponse;
+}
+
+export async function requestPasswordReset(email: string) {
+  const { data, response } = await request<MessageResponse | ApiError>(
+    '/auth/password-reset/request',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(data as ApiError, 'Failed to request password reset')
+    );
+  }
+
+  return data as MessageResponse;
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string) {
+  const { data, response } = await request<MessageResponse | ApiError>(
+    '/auth/password-reset/confirm',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data as ApiError, 'Failed to reset password'));
+  }
+
+  return data as MessageResponse;
 }
 
 export async function setup2FA() {
-  const response = await fetchWithAuth('/auth/2fa/setup', {
+  return requestWithSession<TwoFactorSetupResponse>('/auth/2fa/setup', {
     method: 'POST',
   });
-
-  const result = await parseJson<
-    { secret: string; otp_auth_url: string; detail?: string }
-  >(response);
-  if (!response.ok) throw new Error(result.detail || 'Failed to setup 2FA');
-  return result;
 }
 
 export async function enable2FA(code: string) {
-  const response = await fetchWithAuth('/auth/2fa/enable', {
+  return requestWithSession<RecoveryCodesResponse>('/auth/2fa/enable', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
   });
+}
 
-  const result = await parseJson<{ message?: string; detail?: string }>(response);
-  if (!response.ok) throw new Error(result.detail || 'Failed to enable 2FA');
-  return result;
+export async function regenerateRecoveryCodes(currentPassword: string) {
+  return requestWithSession<RecoveryCodesResponse>(
+    '/auth/2fa/recovery-codes/regenerate',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword }),
+    }
+  );
 }
