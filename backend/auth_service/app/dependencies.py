@@ -1,18 +1,27 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 from bson import ObjectId
 
+from app.config import settings
 from app.db import users_collection
 from app.services.token_service import ACCESS_TOKEN_TYPE, decode_token
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
 ):
-    token = credentials.credentials
+    token = None
+    if credentials is not None:
+        token = credentials.credentials
+    else:
+        token = request.cookies.get(settings.access_cookie_name)
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
         payload = decode_token(token, expected_type=ACCESS_TOKEN_TYPE)
