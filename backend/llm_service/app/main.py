@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -102,6 +103,7 @@ async def add_request_observability(request: Request, call_next):
 
 app.include_router(translate_router)
 app.include_router(health_router)
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/")

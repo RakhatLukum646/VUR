@@ -8,6 +8,7 @@ from uuid import uuid4
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.routers import health_router, websocket_router
@@ -84,6 +85,11 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(websocket_router)
+
+    try:
+        Instrumentator().instrument(app).expose(app)
+    except ValueError:
+        pass  # Already registered in the global Prometheus registry
 
     return app
 

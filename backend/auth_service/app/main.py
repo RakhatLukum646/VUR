@@ -7,6 +7,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.db import ensure_indexes
@@ -76,6 +77,11 @@ def create_app() -> FastAPI:
         return response
 
     app.include_router(auth_router)
+
+    try:
+        Instrumentator().instrument(app).expose(app)
+    except ValueError:
+        pass  # Already registered in the global Prometheus registry
 
     @app.get("/")
     async def root():
