@@ -1,8 +1,11 @@
+import logging
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from app.config import settings
+
+logger = logging.getLogger("auth_service")
 
 
 def send_verification_email(email: str, token: str):
@@ -25,7 +28,6 @@ def send_verification_email(email: str, token: str):
     msg["From"] = f"VUR Translator <{settings.email_user}>"
     msg["To"] = email
     msg["Subject"] = subject
-
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
     try:
@@ -34,10 +36,12 @@ def send_verification_email(email: str, token: str):
         server.login(settings.email_user, settings.email_password)
         server.send_message(msg)
         server.quit()
-        print(f"Verification email sent to {email}")
+        logger.info("verification_email_sent email=%s", email)
     except Exception as e:
-        print("Email sending failed:", e)
-        raise e
+        # SMTP not configured — log the link so local dev can still verify accounts.
+        logger.warning(
+            "email_send_failed reason=%s verification_link=%s", e, verification_link
+        )
 
 
 def send_password_reset_email(email: str, token: str):
@@ -69,7 +73,8 @@ def send_password_reset_email(email: str, token: str):
         server.login(settings.email_user, settings.email_password)
         server.send_message(msg)
         server.quit()
-        print(f"Password reset email sent to {email}")
+        logger.info("password_reset_email_sent email=%s", email)
     except Exception as e:
-        print("Password reset email failed:", e)
-        raise e
+        logger.warning(
+            "email_send_failed reason=%s reset_link=%s", e, reset_link
+        )
