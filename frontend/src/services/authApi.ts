@@ -4,6 +4,7 @@ import type {
   RecoveryCodesResponse,
   SessionResponse,
   TwoFactorSetupResponse,
+  User,
 } from '../types/auth';
 
 const AUTH_API_URL = import.meta.env.VITE_AUTH_URL ?? '';
