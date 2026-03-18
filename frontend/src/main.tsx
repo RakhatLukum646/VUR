@@ -27,7 +27,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route
           path="/"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireVerified>
               <App />
             </ProtectedRoute>
           }

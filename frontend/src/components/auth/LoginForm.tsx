@@ -16,8 +16,8 @@ export default function LoginForm() {
 
     try {
       const result = await loginUser({ email, password });
-      login(result.user, result.access_token);
-      window.location.href = "/profile";
+      login(result.user, result.access_token, result.refresh_token);
+      window.location.href = result.user.is_verified ? "/" : "/profile";
     } catch {
       setError("Login failed. Check your credentials.");
     } finally {

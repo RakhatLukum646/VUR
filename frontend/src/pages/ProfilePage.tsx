@@ -10,7 +10,7 @@ import {
 } from '../services/authApi';
 
 export default function ProfilePage() {
-  const { user, token, login } = useAuthStore();
+  const { user, token, updateUser } = useAuthStore();
 
   const [name, setName] = useState(user?.name || '');
   const [profileMessage, setProfileMessage] = useState('');
@@ -29,8 +29,8 @@ export default function ProfilePage() {
     const loadProfile = async () => {
       if (!token) return;
       try {
-        const freshUser = await getCurrentUser(token);
-        login(freshUser, token);
+        const freshUser = await getCurrentUser();
+        updateUser(freshUser);
         setName(freshUser.name);
       } catch (err) {
         console.error(err);
@@ -38,14 +38,14 @@ export default function ProfilePage() {
     };
 
     loadProfile();
-  }, [token, login]);
+  }, [token, updateUser]);
 
   const handleNameUpdate = async () => {
     if (!token) return;
     try {
-      await updateProfileName(token, name);
-      const freshUser = await getCurrentUser(token);
-      login(freshUser, token);
+      await updateProfileName(name);
+      const freshUser = await getCurrentUser();
+      updateUser(freshUser);
       setProfileMessage('Name updated successfully');
     } catch (err: unknown) {
       setProfileMessage(err instanceof Error ? err.message : 'Failed to update name');
@@ -55,7 +55,7 @@ export default function ProfilePage() {
   const handlePasswordChange = async () => {
     if (!token) return;
     try {
-      await changePassword(token, currentPassword, newPassword);
+      await changePassword(currentPassword, newPassword);
       setPasswordMessage('Password changed successfully');
       setCurrentPassword('');
       setNewPassword('');
@@ -67,8 +67,8 @@ export default function ProfilePage() {
   const handleResendVerification = async () => {
     if (!token) return;
     try {
-      const result = await resendVerification(token);
-      setVerificationMessage(result.message);
+      const result = await resendVerification();
+      setVerificationMessage(result.message ?? 'Verification email sent');
     } catch (err: unknown) {
       setVerificationMessage(err instanceof Error ? err.message : 'Failed to resend verification');
     }
@@ -77,7 +77,7 @@ export default function ProfilePage() {
   const handleSetup2FA = async () => {
     if (!token) return;
     try {
-      const result = await setup2FA(token);
+      const result = await setup2FA();
       setTwoFaSecret(result.secret);
       setTwoFaUrl(result.otp_auth_url);
       setTwoFaMessage('2FA secret generated. Add it to Google Authenticator.');
@@ -89,10 +89,10 @@ export default function ProfilePage() {
   const handleEnable2FA = async () => {
     if (!token) return;
     try {
-      const result = await enable2FA(token, twoFaCode);
-      setTwoFaMessage(result.message);
-      const freshUser = await getCurrentUser(token);
-      login(freshUser, token);
+      const result = await enable2FA(twoFaCode);
+      setTwoFaMessage(result.message ?? '2FA enabled successfully');
+      const freshUser = await getCurrentUser();
+      updateUser(freshUser);
     } catch (err: unknown) {
       setTwoFaMessage(err instanceof Error ? err.message : 'Failed to enable 2FA');
     }

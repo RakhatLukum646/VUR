@@ -8,3 +8,5 @@ pydantic-settings
 python-dotenv
 email-validator
 pyotp
+pytest==7.4.4
+httpx==0.26.0

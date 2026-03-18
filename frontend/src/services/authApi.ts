@@ -1,3 +1,5 @@
+import { useAuthStore } from '../store/useAuthStore';
+
 // In Docker the Nginx gateway forwards /auth/ to the auth service.
 // In local dev set VITE_AUTH_URL=http://localhost:8003 in .env.local.
 const AUTH_API_URL = import.meta.env.VITE_AUTH_URL ?? '';
@@ -24,15 +26,102 @@ export interface AuthUser {
 
 export interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
+  access_expires_in: number;
+  refresh_expires_in: number;
   user: AuthUser;
 }
 
-function getAuthHeaders(token: string) {
+export interface RefreshTokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  access_expires_in: number;
+  refresh_expires_in: number;
+  user: AuthUser;
+}
+
+interface ApiError {
+  detail?: string;
+}
+
+function getAuthHeaders(token: string, headers?: HeadersInit) {
   return {
-    'Content-Type': 'application/json',
+    ...(headers ?? {}),
     Authorization: `Bearer ${token}`,
   };
+}
+
+async function parseJson<T>(response: Response): Promise<T> {
+  return response.json() as Promise<T>;
+}
+
+export async function refreshAccessToken(
+  refreshToken: string
+): Promise<RefreshTokenResponse> {
+  const response = await fetch(`${AUTH_API_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  const result = await parseJson<RefreshTokenResponse | { detail?: string }>(response);
+  if (!response.ok) {
+    throw new Error((result as ApiError).detail || 'Failed to refresh session');
+  }
+
+  return result as RefreshTokenResponse;
+}
+
+async function ensureFreshToken(): Promise<string> {
+  const { token, refreshToken, updateTokens, updateUser, logout } =
+    useAuthStore.getState();
+
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  if (!refreshToken) {
+    logout();
+    throw new Error('Session expired');
+  }
+
+  const refreshed = await refreshAccessToken(refreshToken);
+  updateTokens(refreshed.access_token, refreshed.refresh_token);
+  updateUser(refreshed.user);
+  return refreshed.access_token;
+}
+
+async function fetchWithAuth(
+  path: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const { token, logout } = useAuthStore.getState();
+
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const run = async (authToken: string) =>
+    fetch(`${AUTH_API_URL}${path}`, {
+      ...init,
+      headers: getAuthHeaders(authToken, init.headers),
+    });
+
+  let response = await run(token);
+
+  if (response.status === 401) {
+    try {
+      const freshToken = await ensureFreshToken();
+      response = await run(freshToken);
+    } catch (error) {
+      logout();
+      throw error;
+    }
+  }
+
+  return response;
 }
 
 export async function registerUser(data: RegisterRequest) {
@@ -65,43 +154,42 @@ export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
   return result;
 }
 
-export async function getCurrentUser(token: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/me`, {
-    headers: getAuthHeaders(token),
-  });
+export async function getCurrentUser() {
+  const response = await fetchWithAuth('/auth/me');
 
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Failed to fetch profile');
-  return result;
+  const result = await parseJson<AuthUser | ApiError>(response);
+  if (!response.ok) {
+    throw new Error((result as ApiError).detail || 'Failed to fetch profile');
+  }
+  return result as AuthUser;
 }
 
-export async function updateProfileName(token: string, name: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/profile`, {
+export async function updateProfileName(name: string) {
+  const response = await fetchWithAuth('/auth/profile', {
     method: 'PATCH',
-    headers: getAuthHeaders(token),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
   });
 
-  const result = await response.json();
+  const result = await parseJson<{ message?: string; detail?: string }>(response);
   if (!response.ok) throw new Error(result.detail || 'Failed to update name');
   return result;
 }
 
 export async function changePassword(
-  token: string,
   currentPassword: string,
   newPassword: string
 ) {
-  const response = await fetch(`${AUTH_API_URL}/auth/password`, {
+  const response = await fetchWithAuth('/auth/password', {
     method: 'PATCH',
-    headers: getAuthHeaders(token),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       current_password: currentPassword,
       new_password: newPassword,
     }),
   });
 
-  const result = await response.json();
+  const result = await parseJson<{ message?: string; detail?: string }>(response);
   if (!response.ok) throw new Error(result.detail || 'Failed to change password');
   return result;
 }
@@ -118,36 +206,36 @@ export async function verifyEmail(tokenValue: string) {
   return result;
 }
 
-export async function resendVerification(token: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/resend-verification`, {
+export async function resendVerification() {
+  const response = await fetchWithAuth('/auth/resend-verification', {
     method: 'POST',
-    headers: getAuthHeaders(token),
   });
 
-  const result = await response.json();
+  const result = await parseJson<{ message?: string; detail?: string }>(response);
   if (!response.ok) throw new Error(result.detail || 'Failed to resend email');
   return result;
 }
 
-export async function setup2FA(token: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/2fa/setup`, {
+export async function setup2FA() {
+  const response = await fetchWithAuth('/auth/2fa/setup', {
     method: 'POST',
-    headers: getAuthHeaders(token),
   });
 
-  const result = await response.json();
+  const result = await parseJson<
+    { secret: string; otp_auth_url: string; detail?: string }
+  >(response);
   if (!response.ok) throw new Error(result.detail || 'Failed to setup 2FA');
   return result;
 }
 
-export async function enable2FA(token: string, code: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/2fa/enable`, {
+export async function enable2FA(code: string) {
+  const response = await fetchWithAuth('/auth/2fa/enable', {
     method: 'POST',
-    headers: getAuthHeaders(token),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
   });
 
-  const result = await response.json();
+  const result = await parseJson<{ message?: string; detail?: string }>(response);
   if (!response.ok) throw new Error(result.detail || 'Failed to enable 2FA');
   return result;
 }

@@ -28,8 +28,8 @@ export default function LoginPage() {
         twofa_code: requires2fa ? twofaCode : undefined,
       });
 
-      login(result.user, result.access_token);
-      navigate('/');
+      login(result.user, result.access_token, result.refresh_token);
+      navigate(result.user.is_verified ? '/' : '/profile');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
 

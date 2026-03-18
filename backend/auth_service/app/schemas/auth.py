@@ -26,6 +26,10 @@ class VerifyEmailRequest(BaseModel):
     token: str
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class Enable2FAResponse(BaseModel):
     secret: str
     otp_auth_url: str
@@ -37,5 +41,17 @@ class Verify2FARequest(BaseModel):
 
 class LoginResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+    access_expires_in: int
+    refresh_expires_in: int
+    user: dict
+
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    access_expires_in: int
+    refresh_expires_in: int
     user: dict
