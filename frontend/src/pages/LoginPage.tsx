@@ -38,7 +38,7 @@ export default function LoginPage() {
           requiresSecondFactor && useRecoveryCode ? recoveryCode : undefined,
       });
 
-      login(result.user);
+      login(result.user, result.access_token);
       navigate('/');
     } catch (error: unknown) {
       const detail = error instanceof Error ? error.message : 'Login failed';

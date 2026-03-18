@@ -13,6 +13,7 @@ export default function AuthBootstrap({ children }: Props) {
     isBootstrapping,
     beginBootstrap,
     completeBootstrap,
+    setAccessToken,
   } = useAuthStore();
 
   useEffect(() => {
@@ -22,11 +23,19 @@ export default function AuthBootstrap({ children }: Props) {
 
     beginBootstrap();
     bootstrapSession()
-      .then((user) => completeBootstrap(user))
+      .then((session) => {
+        if (session) {
+          setAccessToken(session.access_token);
+          completeBootstrap(session.user);
+        } else {
+          completeBootstrap(null);
+        }
+      })
       .catch(() => completeBootstrap(null));
   }, [
     beginBootstrap,
     completeBootstrap,
+    setAccessToken,
     isBootstrapped,
     isBootstrapping,
   ]);

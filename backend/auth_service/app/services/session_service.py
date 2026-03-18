@@ -99,8 +99,9 @@ async def get_refresh_session(refresh_token: str) -> tuple[dict, dict]:
         raise JWTError("Refresh session revoked")
 
     if session.get("token_hash") != hash_secret(refresh_token):
-        await revoke_session(session["jti"])
-        raise JWTError("Refresh token mismatch")
+        # Token reuse detected — revoke all sessions for this user as a security measure.
+        await revoke_all_sessions_for_user(session["user_id"])
+        raise JWTError("Refresh token reuse detected — all sessions revoked")
 
     if session.get("expires_at") and session["expires_at"] <= datetime.now(UTC):
         raise JWTError("Refresh session expired")

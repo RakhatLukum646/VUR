@@ -15,6 +15,7 @@ export interface LoginRequest {
 
 export interface SessionResponse {
   token_type: 'session';
+  access_token: string;
   access_expires_in: number;
   refresh_expires_in: number;
   user: User;

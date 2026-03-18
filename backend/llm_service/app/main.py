@@ -37,10 +37,17 @@ async def lifespan(app: FastAPI):
     builder = SentenceBuilder()
     app.state.sentence_builder = builder
 
+    # Start TTL eviction for in-memory sessions (no-op when Redis is active)
+    from app.context.session_manager import SessionManager
+    if isinstance(builder.sessions, SessionManager):
+        builder.sessions.start_cleanup_loop(interval_seconds=300)
+
     logger.info(f"LLM Service started on port {settings.PORT}")
 
     yield
 
+    if isinstance(builder.sessions, SessionManager):
+        builder.sessions.stop_cleanup_loop()
     logger.info("Shutting down LLM Service...")
 
 

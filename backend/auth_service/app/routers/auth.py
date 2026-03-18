@@ -79,6 +79,7 @@ async def _issue_session(user: dict, request: Request, response: Response) -> di
     set_auth_cookies(response, access_token, refresh_token)
     return {
         "token_type": "session",
+        "access_token": access_token,
         "access_expires_in": settings.access_token_expire_minutes * 60,
         "refresh_expires_in": settings.refresh_token_expire_days * 24 * 60 * 60,
         "user": _public_user(user),
@@ -118,7 +119,7 @@ async def register(
         limit_requests(
             "register",
             settings.register_rate_limit_requests,
-            settings.auth_rate_limit_window_seconds,
+            settings.register_rate_limit_window_seconds,
         )
     ),
 ):

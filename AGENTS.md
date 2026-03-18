@@ -26,6 +26,7 @@ pip install -r requirements.txt
 - `cd backend/auth_service && source venv/bin/activate && uvicorn app.main:app --reload --port 8003`: run the auth service.
 - `cd backend/<service> && source venv/bin/activate && pytest tests/ -v`: run that service's test suite.
 - `docker-compose up --build`: start the nginx gateway plus all services.
+- `bash nginx/gen-certs.sh`: generate a self-signed TLS certificate for local Docker use (run once before `docker-compose up`). The cert files are gitignored.
 Some `Makefile` targets still mention a removed `backend/api_gateway`; prefer the direct commands above.
 
 ## Coding Style & Naming Conventions

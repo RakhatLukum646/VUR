@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     auth_rate_limit_window_seconds: int = 60
     login_rate_limit_requests: int = 10
     register_rate_limit_requests: int = 5
+    register_rate_limit_window_seconds: int = 3600  # 5 registrations per hour
     refresh_rate_limit_requests: int = 20
     password_reset_rate_limit_requests: int = 5
     logout_rate_limit_requests: int = 20

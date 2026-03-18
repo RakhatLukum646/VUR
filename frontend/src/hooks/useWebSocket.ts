@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UseWebSocketReturn, DetectionResult, FrameMessage, CommandMessage } from '../types';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 // In Docker: gateway proxies /ws/ → MediaPipe.
-// In local dev set VITE_WS_URL=ws://localhost:8001 in .env.local.
-const WS_BASE = import.meta.env.VITE_WS_URL ?? `ws://${window.location.host}`;
-const WS_URL = `${WS_BASE}/ws/sign-detection`;
+// In local dev set VITE_WS_URL=wss://localhost:8001 in .env.local.
+const WS_BASE = import.meta.env.VITE_WS_URL ?? `wss://${window.location.host}`;
+const WS_PATH = '/ws/sign-detection';
 
 export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
@@ -25,13 +26,15 @@ export function useWebSocket(): UseWebSocketReturn {
   const [error, setError] = useState<string | null>(null);
 
   const { sessionId, language, setConnected, setConnectionStatus } = useAppStore();
+  const accessToken = useAuthStore((state) => state.accessToken);
 
   const connect = useCallback(() => {
     try {
       setError(null);
       setConnectionStatus('connecting');
 
-      const ws = new WebSocket(WS_URL);
+      const tokenParam = accessToken ? `?token=${encodeURIComponent(accessToken)}` : '';
+      const ws = new WebSocket(`${WS_BASE}${WS_PATH}${tokenParam}`);
       
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -106,7 +109,7 @@ export function useWebSocket(): UseWebSocketReturn {
       setError('Failed to connect to WebSocket');
       setConnectionStatus('error');
     }
-  }, [sessionId, language, setConnected, setConnectionStatus]);
+  }, [sessionId, language, accessToken, setConnected, setConnectionStatus]);
 
   const disconnect = useCallback(() => {
     // Send stop command

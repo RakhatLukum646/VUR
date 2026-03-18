@@ -65,6 +65,7 @@ class PasswordResetConfirmRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     token_type: str = "session"
+    access_token: str
     access_expires_in: int
     refresh_expires_in: int
     user: dict
@@ -72,6 +73,7 @@ class LoginResponse(BaseModel):
 
 class RefreshTokenResponse(BaseModel):
     token_type: str = "session"
+    access_token: str
     access_expires_in: int
     refresh_expires_in: int
     user: dict

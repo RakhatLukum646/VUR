@@ -6,9 +6,11 @@ import logging
 from typing import Dict
 
 import httpx
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from jose import JWTError
 
 from app.config import settings
+from app.services.ws_auth import verify_ws_token
 from app.models.gesture_classifier import GestureClassifier
 from app.services.hand_detector import HandDetector
 from app.services.sign_buffer import SignBuffer
@@ -60,7 +62,19 @@ def _describe_frame_quality(
 
 
 @websocket_router.websocket("/ws/sign-detection")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str | None = Query(default=None),
+):
+    if not token:
+        await websocket.close(code=4401, reason="Missing auth token")
+        return
+    try:
+        verify_ws_token(token)
+    except JWTError:
+        await websocket.close(code=4403, reason="Invalid auth token")
+        return
+
     await websocket.accept()
     session_id = None
 

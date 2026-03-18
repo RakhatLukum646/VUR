@@ -4,7 +4,6 @@ import type {
   RecoveryCodesResponse,
   SessionResponse,
   TwoFactorSetupResponse,
-  User,
 } from '../types/auth';
 
 const AUTH_API_URL = import.meta.env.VITE_AUTH_URL ?? '';
@@ -130,9 +129,12 @@ export async function logoutAllDevices() {
   });
 }
 
-export async function bootstrapSession(): Promise<User | null> {
+export async function bootstrapSession(): Promise<SessionResponse | null> {
   try {
-    return await requestWithSession<User>('/auth/me');
+    // Call refresh to both validate the session and obtain a fresh access_token
+    // for use as a WebSocket auth credential.
+    const data = await refreshSession();
+    return data;
   } catch {
     return null;
   }
