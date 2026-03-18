@@ -3,15 +3,20 @@ import os
 
 from jose import JWTError, jwt
 
-_SECRET = os.environ.get("JWT_SECRET", "change-me-in-production")
-_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 _ACCESS_TYPE = "access"
 
 
 def verify_ws_token(token: str) -> dict:
-    """Decode and validate an access JWT. Raises JWTError on any failure."""
+    """Decode and validate an access JWT. Raises JWTError on any failure.
+
+    The secret and algorithm are read from the environment at call time so
+    that test suites can set JWT_SECRET before the first request without
+    being defeated by module-level caching.
+    """
+    secret = os.environ.get("JWT_SECRET", "change-me-in-production")
+    algorithm = os.environ.get("JWT_ALGORITHM", "HS256")
     try:
-        payload = jwt.decode(token, _SECRET, algorithms=[_ALGORITHM])
+        payload = jwt.decode(token, secret, algorithms=[algorithm])
     except JWTError:
         raise JWTError("Invalid token")
     if payload.get("type") != _ACCESS_TYPE:

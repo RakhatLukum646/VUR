@@ -160,3 +160,36 @@ def test_websocket_command_clear_returns_cleared(client):
         assert response["type"] == "command"
         assert response["payload"]["status"] == "cleared"
         assert response["payload"]["session_id"] == "test-session"
+
+
+def test_websocket_command_stop_returns_stopped(client):
+    token = _make_access_token()
+    with client.websocket_connect(f"/ws/sign-detection?token={token}") as ws:
+        ws.send_text(json.dumps({
+            "type": "command",
+            "payload": {"action": "start", "session_id": "test-session", "language": "en"},
+        }))
+        ws.receive_text()  # consume start response
+        ws.send_text(json.dumps({
+            "type": "command",
+            "payload": {"action": "stop", "session_id": "test-session"},
+        }))
+        response = json.loads(ws.receive_text())
+        assert response["type"] == "command"
+        assert response["payload"]["status"] == "stopped"
+        assert response["payload"]["session_id"] == "test-session"
+
+
+def test_websocket_command_translate_returns_translating(client):
+    """Translate with an empty sign buffer returns translating status without
+    calling the LLM (no signs queued, so create_task is skipped)."""
+    token = _make_access_token()
+    with client.websocket_connect(f"/ws/sign-detection?token={token}") as ws:
+        ws.send_text(json.dumps({
+            "type": "command",
+            "payload": {"action": "translate", "session_id": "test-session"},
+        }))
+        response = json.loads(ws.receive_text())
+        assert response["type"] == "command"
+        assert response["payload"]["status"] == "translating"
+        assert response["payload"]["session_id"] == "test-session"
