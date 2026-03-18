@@ -1,4 +1,18 @@
 services:
+  # ── MongoDB — auth persistence ────────────────────────────
+  mongo:
+    image: mongo:7
+    expose:
+      - "27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Redis — shared session cache ──────────────────────────
   redis:
     image: redis:7-alpine
@@ -106,14 +120,27 @@ services:
     env_file:
       - .env
     environment:
+      - mongodb_url=${MONGODB_URL:-mongodb://mongo:27017}
+      - mongodb_db=${MONGODB_DB:-vur}
+      - jwt_secret=${JWT_SECRET:-change-me-in-production}
       - frontend_url=http://localhost
+      - cors_origins=${CORS_ORIGINS:-http://localhost:5173,http://localhost}
+      - email_host=${EMAIL_HOST:-smtp.example.com}
+      - email_port=${EMAIL_PORT:-587}
+      - email_user=${EMAIL_USER:-noreply@example.com}
+      - email_password=${EMAIL_PASSWORD:-change-me}
+      - log_level=${LOG_LEVEL:-INFO}
+    depends_on:
+      mongo:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
 
 volumes:
+  mongo_data:
   redis_data:

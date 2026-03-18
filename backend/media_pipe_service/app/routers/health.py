@@ -1,7 +1,7 @@
 """Health check endpoints."""
 
 from fastapi import APIRouter
-from datetime import datetime
+from datetime import UTC, datetime
 
 health_router = APIRouter()
 
@@ -12,8 +12,8 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "media_pipe",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0"
+        "timestamp": datetime.now(UTC).isoformat(),
+        "version": "1.0.0",
     }
 
 
@@ -22,5 +22,5 @@ async def readiness_check():
     """Readiness check for Kubernetes."""
     return {
         "ready": True,
-        "service": "media_pipe"
+        "service": "media_pipe",
     }

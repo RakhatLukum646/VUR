@@ -1,10 +1,11 @@
 """LLM Service - FastAPI application for sign language translation."""
 import logging
 from contextlib import asynccontextmanager
+from time import perf_counter
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -14,7 +15,7 @@ from app.processors.sentence_builder import SentenceBuilder
 from app.routers import translate_router, health_router
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, get_settings().LOG_LEVEL.upper(), logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -60,6 +61,37 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_request_observability(request: Request, call_next):
+    request_id = request.headers.get("x-request-id") or str(uuid4())
+    request.state.request_id = request_id
+    started_at = perf_counter()
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "request_failed service=llm method=%s path=%s request_id=%s duration_ms=%.2f",
+            request.method,
+            request.url.path,
+            request_id,
+            (perf_counter() - started_at) * 1000,
+        )
+        raise
+
+    duration_ms = (perf_counter() - started_at) * 1000
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request_completed service=llm method=%s path=%s status_code=%s request_id=%s duration_ms=%.2f",
+        request.method,
+        request.url.path,
+        response.status_code,
+        request_id,
+        duration_ms,
+    )
+    return response
 
 app.include_router(translate_router)
 app.include_router(health_router)

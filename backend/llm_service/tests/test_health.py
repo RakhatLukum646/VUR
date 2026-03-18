@@ -22,6 +22,7 @@ async def client():
 async def test_health_endpoint_status_ok(client):
     response = await client.get("/health")
     assert response.status_code == 200
+    assert response.headers["x-request-id"]
 
 
 @pytest.mark.asyncio
@@ -47,6 +48,7 @@ async def test_health_v1_endpoint_matches(client):
 async def test_root_endpoint(client):
     response = await client.get("/")
     assert response.status_code == 200
+    assert response.headers["x-request-id"]
     data = response.json()
     assert data["service"] == "Sign Language LLM Service"
     assert data["status"] == "running"

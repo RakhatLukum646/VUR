@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     PORT: int = 8001
     HOST: str = "0.0.0.0"
     DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
     
     # MediaPipe settings
     CONFIDENCE_THRESHOLD: float = 0.7

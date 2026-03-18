@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     cookie_samesite: str = "lax"
     cookie_domain: str | None = None
+    log_level: str = "INFO"
 
     auth_rate_limit_window_seconds: int = 60
     login_rate_limit_requests: int = 10

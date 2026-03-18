@@ -2,111 +2,59 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
   pull_request:
-    branches: [main, develop]
 
 jobs:
-  # ── LLM service tests ────────────────────────────────────────────────────
-  test-llm-service:
-    name: LLM Service — pytest
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend/llm_service
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: backend/llm_service/requirements.txt
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run tests
-        env:
-          GEMINI_API_KEY: ""   # tests use fallback mode
-        run: pytest tests/ -v --tb=short
-
-  # ── MediaPipe service tests ──────────────────────────────────────────────
-  test-media-pipe-service:
-    name: MediaPipe Service — pytest
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend/media_pipe_service
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: backend/media_pipe_service/requirements.txt
-
-      - name: Install system dependencies for OpenCV
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends \
-            libgl1 libglib2.0-0
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run tests
-        run: pytest tests/ -v --tb=short
-
-  # ── Frontend lint ────────────────────────────────────────────────────────
-  lint-frontend:
-    name: Frontend — ESLint
+  frontend:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test -- --run
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Type-check & build
-        run: npm run build
-
-  # ── Docker Compose smoke test ────────────────────────────────────────────
-  docker-build:
-    name: Docker — build all images
+  backend:
     runs-on: ubuntu-latest
-    # Only run on PRs targeting main to keep push CI fast
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth_service
+          - llm_service
+          - media_pipe_service
+    defaults:
+      run:
+        working-directory: backend/${{ matrix.service }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create minimal .env for build
-        run: |
-          echo "GEMINI_API_KEY=placeholder" > .env
-          echo "MONGODB_URL=mongodb://localhost:27017" >> .env
-          echo "MONGODB_DB=vur_test" >> .env
-          echo "JWT_SECRET=ci-test-secret" >> .env
-          echo "EMAIL_HOST=smtp.example.com" >> .env
-          echo "EMAIL_PORT=587" >> .env
-          echo "EMAIL_USER=ci@example.com" >> .env
-          echo "EMAIL_PASSWORD=placeholder" >> .env
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Build all Docker images
-        run: docker compose build --parallel
+      - run: python -m venv venv
+
+      - run: |
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - run: |
+          source venv/bin/activate
+          pytest tests/ -v
+
+      - if: matrix.service == 'auth_service'
+        run: |
+          source venv/bin/activate
+          python -m compileall app
