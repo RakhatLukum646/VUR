@@ -39,3 +39,6 @@ Recent history mixes short imperative subjects with Conventional Commit prefixes
 
 ## Security & Configuration Tips
 Do not commit populated `.env` files or API keys. Start from `.env.example` at the repo root and service-specific examples such as `backend/llm_service/.env.example`. Treat generated folders like `venv/`, `dist/`, and `__pycache__/` as local artifacts only.
+
+## Code Standards
+- Never typecast. Never use `as`

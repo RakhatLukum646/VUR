@@ -1,6 +1,7 @@
 # Environment files
 .env
 .env.local
+AGENTS.md
 
 # Python virtual environments
 venv/
