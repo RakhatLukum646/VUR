@@ -1,6 +1,6 @@
 """Health check endpoints."""
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 
@@ -16,7 +16,7 @@ async def health_check(request: Request):
     return {
         "status": "healthy" if healthy else "degraded",
         "service": "llm_service",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "gemini_api": "up" if healthy else "down",
     }
 

@@ -40,3 +40,14 @@ uvicorn app.main:app --reload --port 8002
 ```bash
 pytest tests/
 ```
+
+## Benchmarking
+
+```bash
+python scripts/benchmark_translation.py \
+  --cases evaluation/translation_cases.json \
+  --out reports/translation_benchmark.json
+```
+
+This produces a JSON report with latency statistics, per-case translations,
+keyword match scores, and fallback-mode visibility.

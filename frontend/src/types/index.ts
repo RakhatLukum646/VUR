@@ -18,6 +18,12 @@ export interface DetectionResult {
     processing_time_ms?: number;
     fallback?: boolean;
     language?: string;
+    guidance?: string;
+    frame_quality?: number;
+    stability?: number;
+    sequence_length?: number;
+    commit_ready?: boolean;
+    detection_confidence?: number;
   };
 }
 
@@ -126,5 +132,10 @@ export interface UseWebSocketReturn {
   lastSign: string | null;
   lastConfidence: number;
   lastLandmarks: Landmark[] | null;
+  lastGuidance: string | null;
+  lastFrameQuality: number;
+  lastStability: number;
+  sequenceLength: number;
+  handDetected: boolean;
   error: string | null;
 }

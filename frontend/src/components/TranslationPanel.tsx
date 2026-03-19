@@ -1,22 +1,62 @@
 import React from 'react';
-import { MessageSquare, History, Sparkles, Activity, Volume2, VolumeX } from 'lucide-react';
-import { useAppStore } from '../store/useAppStore';
+import {
+  Activity,
+  Eye,
+  Gauge,
+  History,
+  MessageSquare,
+  Sparkles,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { useSpeech } from '../hooks/useSpeech';
+import { useAppStore } from '../store/useAppStore';
 
 interface TranslationPanelProps {
   lastSign: string | null;
   confidence: number;
+  guidance: string | null;
+  frameQuality: number;
+  stability: number;
+  sequenceLength: number;
+  handDetected: boolean;
+}
+
+function getConfidenceExplanation(confidence: number, handDetected: boolean) {
+  if (!handDetected) {
+    return 'No hand detected yet.';
+  }
+
+  if (confidence >= 0.85) {
+    return 'High confidence. The hand shape looks consistent.';
+  }
+
+  if (confidence >= 0.65) {
+    return 'Moderate confidence. Hold the gesture a bit longer.';
+  }
+
+  return 'Low confidence. Adjust framing, lighting, or hand shape.';
 }
 
 export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   lastSign,
   confidence,
+  guidance,
+  frameQuality,
+  stability,
+  sequenceLength,
+  handDetected,
 }) => {
-  const { detectedSigns, currentSentence, translationHistory, language } = useAppStore();
-  const { speak, stop, isSpeaking, isSupported } = useSpeech();
+  const { currentSentence, detectedSigns, language, translationHistory } =
+    useAppStore();
+  const { isSpeaking, isSupported, speak, stop } = useSpeech();
 
   const signsDisplay = detectedSigns.slice(-20).join(' ');
   const recentHistory = translationHistory.slice(-5).reverse();
+  const confidenceExplanation = getConfidenceExplanation(
+    confidence,
+    handDetected
+  );
 
   const handleSpeak = (text: string) => {
     if (isSpeaking) {
@@ -28,7 +68,6 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
         <h2 className="text-white font-semibold flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
@@ -37,9 +76,8 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Current Detection */}
-        <div className="bg-blue-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-blue-700 mb-2">
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-4">
+          <div className="flex items-center gap-2 text-blue-700">
             <Activity className="w-4 h-4" />
             <span className="text-sm font-medium uppercase tracking-wide">
               Current Detection
@@ -50,24 +88,73 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
             <div className="text-4xl font-bold text-blue-600 min-w-[60px]">
               {lastSign || '-'}
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-gray-600">Confidence:</span>
-                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500 transition-all duration-300"
-                    style={{ width: `${(confidence || 0) * 100}%` }}
-                  />
+            <div className="flex-1 space-y-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm text-gray-600">Classifier confidence</span>
+                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all duration-300"
+                      style={{ width: `${(confidence || 0) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">
+                    {Math.round((confidence || 0) * 100)}%
+                  </span>
                 </div>
-                <span className="text-sm font-medium text-gray-700">
-                  {Math.round((confidence || 0) * 100)}%
-                </span>
+                <p className="text-xs text-gray-500">{confidenceExplanation}</p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-white px-3 py-2">
+                  <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500">
+                    <Gauge className="w-3.5 h-3.5" />
+                    Frame quality
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 transition-all duration-300"
+                        style={{ width: `${frameQuality * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-gray-700">
+                      {Math.round(frameQuality * 100)}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-white px-3 py-2">
+                  <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500">
+                    <Eye className="w-3.5 h-3.5" />
+                    Stability
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-violet-500 transition-all duration-300"
+                        style={{ width: `${stability * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-gray-700">
+                      {Math.round(stability * 100)}%
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
+          <div className="rounded-lg border border-blue-100 bg-white px-4 py-3">
+            <p className="text-sm font-medium text-blue-900">
+              {guidance ?? 'Show one hand in the frame to start detection.'}
+            </p>
+            <p className="mt-1 text-xs text-blue-700">
+              Buffered signs in current phrase: {sequenceLength}
+            </p>
+          </div>
         </div>
 
-        {/* Detected Signs Stream */}
         <div>
           <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
@@ -87,7 +174,6 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
           </p>
         </div>
 
-        {/* Translated Sentence */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-gray-700">
@@ -128,7 +214,6 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
           </div>
         </div>
 
-        {/* History — each item has its own speak button */}
         {recentHistory.length > 0 && (
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">

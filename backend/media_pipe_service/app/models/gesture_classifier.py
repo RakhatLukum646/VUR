@@ -20,8 +20,11 @@ All landmarks are expected to be wrist-relative and unit-scaled
 """
 
 import logging
-import numpy as np
+import time
 from typing import Optional, Tuple
+
+import numpy as np
+
 from app.config import settings
 from app.models.ml_classifier import MLClassifier
 
@@ -142,11 +145,21 @@ class GestureClassifier:
 
     def __init__(self):
         self.confidence_threshold = settings.CONFIDENCE_THRESHOLD
+        t0 = time.perf_counter()
         self._ml = MLClassifier()
+        elapsed_ms = (time.perf_counter() - t0) * 1000
         if self._ml.is_available:
-            logger.info("Using ML classifier (MLP).")
+            logger.info(
+                "ml_model_loaded classifier=MLP elapsed_ms=%.1f confidence_threshold=%.2f",
+                elapsed_ms,
+                self.confidence_threshold,
+            )
         else:
-            logger.info("Using heuristic classifier (no model found).")
+            logger.warning(
+                "ml_model_unavailable classifier=heuristic elapsed_ms=%.1f confidence_threshold=%.2f",
+                elapsed_ms,
+                self.confidence_threshold,
+            )
 
     # ------------------------------------------------------------------
     def classify(self, landmarks: list) -> Tuple[Optional[str], float]:

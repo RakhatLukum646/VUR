@@ -1,0 +1,133 @@
+{
+  "cases": 6,
+  "reuse_session": false,
+  "average_keyword_score": 1.0,
+  "pass_rate": 1.0,
+  "latency_ms": {
+    "mean": 0.014,
+    "median": 0.012,
+    "p95": 0.034,
+    "max": 0.034
+  },
+  "results": [
+    {
+      "id": "en-fingerspell-hello",
+      "language": "en",
+      "sign_sequence": [
+        "H",
+        "E",
+        "L",
+        "L",
+        "O"
+      ],
+      "translation": "Hello!",
+      "fallback": true,
+      "latency_ms": 0.034,
+      "expected_keywords": [
+        "hello"
+      ],
+      "matched_keywords": [
+        "hello"
+      ],
+      "keyword_score": 1.0
+    },
+    {
+      "id": "en-fingerspell-thankyou",
+      "language": "en",
+      "sign_sequence": [
+        "T",
+        "H",
+        "A",
+        "N",
+        "K",
+        "Y",
+        "O",
+        "U"
+      ],
+      "translation": "Thankyou",
+      "fallback": true,
+      "latency_ms": 0.012,
+      "expected_keywords": [
+        "thank"
+      ],
+      "matched_keywords": [
+        "thank"
+      ],
+      "keyword_score": 1.0
+    },
+    {
+      "id": "ru-word-hello",
+      "language": "ru",
+      "sign_sequence": [
+        "привет"
+      ],
+      "translation": "Привет!",
+      "fallback": true,
+      "latency_ms": 0.012,
+      "expected_keywords": [
+        "привет"
+      ],
+      "matched_keywords": [
+        "привет"
+      ],
+      "keyword_score": 1.0
+    },
+    {
+      "id": "ru-phrase-thanks",
+      "language": "ru",
+      "sign_sequence": [
+        "спасибо",
+        "вам"
+      ],
+      "translation": "Спасибо вам",
+      "fallback": true,
+      "latency_ms": 0.012,
+      "expected_keywords": [
+        "спасибо",
+        "вам"
+      ],
+      "matched_keywords": [
+        "спасибо",
+        "вам"
+      ],
+      "keyword_score": 1.0
+    },
+    {
+      "id": "kz-phrase-greeting",
+      "language": "kz",
+      "sign_sequence": [
+        "сәлем",
+        "дос"
+      ],
+      "translation": "Сәлем дос",
+      "fallback": true,
+      "latency_ms": 0.009,
+      "expected_keywords": [
+        "сәлем",
+        "дос"
+      ],
+      "matched_keywords": [
+        "сәлем",
+        "дос"
+      ],
+      "keyword_score": 1.0
+    },
+    {
+      "id": "kz-word-thanks",
+      "language": "kz",
+      "sign_sequence": [
+        "рақмет"
+      ],
+      "translation": "Рақмет",
+      "fallback": true,
+      "latency_ms": 0.008,
+      "expected_keywords": [
+        "рақмет"
+      ],
+      "matched_keywords": [
+        "рақмет"
+      ],
+      "keyword_score": 1.0
+    }
+  ]
+}

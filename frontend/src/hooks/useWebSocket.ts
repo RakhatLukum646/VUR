@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UseWebSocketReturn, DetectionResult, FrameMessage, CommandMessage } from '../types';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 // In Docker: gateway proxies /ws/ → MediaPipe.
-// In local dev set VITE_WS_URL=ws://localhost:8001 in .env.local.
-const WS_BASE = import.meta.env.VITE_WS_URL ?? `ws://${window.location.host}`;
-const WS_URL = `${WS_BASE}/ws/sign-detection`;
+// In local dev set VITE_WS_URL=wss://localhost:8001 in .env.local.
+const WS_BASE = import.meta.env.VITE_WS_URL ?? `wss://${window.location.host}`;
+const WS_PATH = '/ws/sign-detection';
 
 export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
@@ -15,16 +16,25 @@ export function useWebSocket(): UseWebSocketReturn {
   const [lastSign, setLastSign] = useState<string | null>(null);
   const [lastConfidence, setLastConfidence] = useState(0);
   const [lastLandmarks, setLastLandmarks] = useState<[number, number][] | null>(null);
+  const [lastGuidance, setLastGuidance] = useState<string | null>(
+    'Show one hand in the frame to start detection.'
+  );
+  const [lastFrameQuality, setLastFrameQuality] = useState(0);
+  const [lastStability, setLastStability] = useState(0);
+  const [sequenceLength, setSequenceLength] = useState(0);
+  const [handDetected, setHandDetected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { sessionId, language, setConnected, setConnectionStatus } = useAppStore();
+  const accessToken = useAuthStore((state) => state.accessToken);
 
   const connect = useCallback(() => {
     try {
       setError(null);
       setConnectionStatus('connecting');
 
-      const ws = new WebSocket(WS_URL);
+      const tokenParam = accessToken ? `?token=${encodeURIComponent(accessToken)}` : '';
+      const ws = new WebSocket(`${WS_BASE}${WS_PATH}${tokenParam}`);
       
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -47,9 +57,23 @@ export function useWebSocket(): UseWebSocketReturn {
           const data: DetectionResult = JSON.parse(event.data);
           setLastMessage(data);
           if (data.type === 'detection') {
-            const { sign, confidence, hand_detected, landmarks } = data.payload;
+            const {
+              sign,
+              confidence,
+              hand_detected,
+              landmarks,
+              guidance,
+              frame_quality,
+              stability,
+              sequence_length,
+            } = data.payload;
             setLastSign(sign ?? null);
             setLastConfidence(confidence ?? 0);
+            setLastGuidance(guidance ?? null);
+            setLastFrameQuality(frame_quality ?? 0);
+            setLastStability(stability ?? 0);
+            setSequenceLength(sequence_length ?? 0);
+            setHandDetected(Boolean(hand_detected));
             if (hand_detected && landmarks) {
               setLastLandmarks(landmarks as [number, number][]);
             } else if (!hand_detected) {
@@ -85,7 +109,7 @@ export function useWebSocket(): UseWebSocketReturn {
       setError('Failed to connect to WebSocket');
       setConnectionStatus('error');
     }
-  }, [sessionId, language, setConnected, setConnectionStatus]);
+  }, [sessionId, language, accessToken, setConnected, setConnectionStatus]);
 
   const disconnect = useCallback(() => {
     // Send stop command
@@ -147,6 +171,11 @@ export function useWebSocket(): UseWebSocketReturn {
     setLastSign(null);
     setLastConfidence(0);
     setLastLandmarks(null);
+    setLastGuidance('Show one hand in the frame to start detection.');
+    setLastFrameQuality(0);
+    setLastStability(0);
+    setSequenceLength(0);
+    setHandDetected(false);
   }, []);
 
   // Cleanup on unmount
@@ -170,6 +199,11 @@ export function useWebSocket(): UseWebSocketReturn {
     lastSign,
     lastConfidence,
     lastLandmarks,
+    lastGuidance,
+    lastFrameQuality,
+    lastStability,
+    sequenceLength,
+    handDetected,
     error,
   };
 }

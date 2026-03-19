@@ -13,6 +13,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useToast } from './hooks/useToast';
 import { useAppStore } from './store/useAppStore';
 import { translateSigns, clearSession as clearSessionApi } from './services/api';
+import { logoutUser } from './services/authApi';
 import './App.css';
 
 function App() {
@@ -33,7 +34,12 @@ function App() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // Clear local auth state even if the backend session is already gone.
+    }
     logout();
     navigate('/login');
   };
@@ -46,6 +52,11 @@ function App() {
     lastSign,
     lastConfidence,
     lastLandmarks,
+    lastGuidance,
+    lastFrameQuality,
+    lastStability,
+    sequenceLength,
+    handDetected,
     sendCommand,
     error: wsError,
   } = ws;
@@ -224,7 +235,7 @@ function App() {
 
             <div className="flex items-center gap-4">
               <a
-                href="https://github.com/rakhatdiploma/iitudiplomas"
+                href="https://github.com/RakhatLukum646/VUR"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -266,7 +277,10 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <StatusBar />
+          <StatusBar
+            detectionGuidance={lastGuidance}
+            frameQuality={lastFrameQuality}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -286,6 +300,11 @@ function App() {
           <TranslationPanel
             lastSign={lastSign}
             confidence={lastConfidence}
+            guidance={lastGuidance}
+            frameQuality={lastFrameQuality}
+            stability={lastStability}
+            sequenceLength={sequenceLength}
+            handDetected={handDetected}
           />
         </div>
 
@@ -310,20 +329,33 @@ function App() {
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold">3.</span>
-              <span>Make sign language gestures in front of the camera</span>
+              <span>
+                Keep one hand centered, well lit, and large enough in the frame
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold">4.</span>
+              <span>
+                Hold each sign briefly until the app marks it as stable, then pause
+                between words
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-bold">5.</span>
               <span>
                 Click "Translate Signs to Sentence" to get a grammatically
                 correct translation via Gemini
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="font-bold">5.</span>
+              <span className="font-bold">6.</span>
               <span>Click "Clear" to start a new session</span>
             </li>
           </ol>
+          <p className="mt-4 text-sm text-blue-900">
+            Privacy note: camera frames are processed for live recognition and are
+            not stored by the frontend.
+          </p>
         </div>
       </main>
 

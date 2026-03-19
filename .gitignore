@@ -1,6 +1,7 @@
 # Environment files
 .env
 .env.local
+AGENTS.md
 
 # Python virtual environments
 venv/
@@ -41,3 +42,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# TLS certificates (generated locally, never commit private keys)
+nginx/certs/*.key
+nginx/certs/*.crt

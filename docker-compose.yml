@@ -1,4 +1,18 @@
 services:
+  # ── MongoDB — auth persistence ────────────────────────────
+  mongo:
+    image: mongo:7
+    expose:
+      - "27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Redis — shared session cache ──────────────────────────
   redis:
     image: redis:7-alpine
@@ -20,8 +34,10 @@ services:
     image: nginx:alpine
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       frontend:
         condition: service_started
@@ -59,10 +75,20 @@ services:
       - PORT=8001
       - CONFIDENCE_THRESHOLD=0.7
       - LLM_SERVICE_URL=http://llm-service:8002
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_ALGORITHM=HS256
     depends_on:
       llm-service:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health')"]
       interval: 30s
@@ -89,6 +115,14 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 30s
@@ -106,14 +140,35 @@ services:
     env_file:
       - .env
     environment:
+      - mongodb_url=${MONGODB_URL:-mongodb://mongo:27017}
+      - mongodb_db=${MONGODB_DB:-vur}
+      - jwt_secret=${JWT_SECRET:-change-me-in-production}
       - frontend_url=http://localhost
+      - cors_origins=${CORS_ORIGINS:-http://localhost:5173,http://localhost}
+      - email_host=${EMAIL_HOST:-smtp.example.com}
+      - email_port=${EMAIL_PORT:-587}
+      - email_user=${EMAIL_USER:-noreply@example.com}
+      - email_password=${EMAIL_PASSWORD:-change-me}
+      - log_level=${LOG_LEVEL:-INFO}
+    depends_on:
+      mongo:
+        condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
 
 volumes:
+  mongo_data:
   redis_data:
