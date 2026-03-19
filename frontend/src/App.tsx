@@ -235,7 +235,7 @@ function App() {
 
             <div className="flex items-center gap-4">
               <a
-                href="https://github.com/rakhatdiploma/iitudiplomas"
+                href="https://github.com/RakhatLukum646/VUR"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
