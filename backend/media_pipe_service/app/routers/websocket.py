@@ -224,10 +224,13 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
 
     except Exception as e:
         logger.exception("frame_processing_error session_id=%s", session_id)
-        await websocket.send_json({
-            "type": "error",
-            "payload": {"message": f"Processing error: {str(e)}"},
-        })
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "payload": {"message": f"Processing error: {str(e)}"},
+            })
+        except Exception:
+            pass
 
 
 async def handle_command(websocket: WebSocket, payload: dict):
@@ -238,25 +241,34 @@ async def handle_command(websocket: WebSocket, payload: dict):
         active_connections[session_id] = websocket
         lang = payload.get("language", "ru")
         session_languages[session_id] = lang
-        await websocket.send_json({
-            "type": "command",
-            "payload": {"status": "started", "session_id": session_id, "language": lang},
-        })
+        try:
+            await websocket.send_json({
+                "type": "command",
+                "payload": {"status": "started", "session_id": session_id, "language": lang},
+            })
+        except Exception:
+            pass
 
     elif action == "stop":
         if session_id in active_connections:
             del active_connections[session_id]
-        await websocket.send_json({
-            "type": "command",
-            "payload": {"status": "stopped", "session_id": session_id},
-        })
+        try:
+            await websocket.send_json({
+                "type": "command",
+                "payload": {"status": "stopped", "session_id": session_id},
+            })
+        except Exception:
+            pass
 
     elif action == "clear":
         sign_buffer.clear_session(session_id)
-        await websocket.send_json({
-            "type": "command",
-            "payload": {"status": "cleared", "session_id": session_id},
-        })
+        try:
+            await websocket.send_json({
+                "type": "command",
+                "payload": {"status": "cleared", "session_id": session_id},
+            })
+        except Exception:
+            pass
 
     elif action == "translate":
         sequence = sign_buffer.commit_sequence(session_id)
@@ -265,10 +277,13 @@ async def handle_command(websocket: WebSocket, payload: dict):
             asyncio.create_task(
                 send_to_llm_and_relay(session_id, sequence, lang)
             )
-        await websocket.send_json({
-            "type": "command",
-            "payload": {"status": "translating", "session_id": session_id},
-        })
+        try:
+            await websocket.send_json({
+                "type": "command",
+                "payload": {"status": "translating", "session_id": session_id},
+            })
+        except Exception:
+            pass
 
 
 async def send_to_llm_and_relay(session_id: str, sequence: list, language: str = "ru"):
@@ -290,17 +305,20 @@ async def send_to_llm_and_relay(session_id: str, sequence: list, language: str =
                 result = response.json()
                 ws = active_connections.get(session_id)
                 if ws:
-                    await ws.send_json({
-                        "type": "translation",
-                        "payload": {
-                            "translation": result.get("translation", ""),
-                            "confidence": result.get("confidence", 0),
-                            "signs": sequence,
-                            "session_id": session_id,
-                            "processing_time_ms": result.get("processing_time_ms", 0),
-                            "fallback": result.get("fallback", False),
-                        },
-                    })
+                    try:
+                        await ws.send_json({
+                            "type": "translation",
+                            "payload": {
+                                "translation": result.get("translation", ""),
+                                "confidence": result.get("confidence", 0),
+                                "signs": sequence,
+                                "session_id": session_id,
+                                "processing_time_ms": result.get("processing_time_ms", 0),
+                                "fallback": result.get("fallback", False),
+                            },
+                        })
+                    except Exception:
+                        active_connections.pop(session_id, None)
 
     except Exception as e:
         logger.exception("llm_relay_failed session_id=%s", session_id)
