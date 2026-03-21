@@ -34,7 +34,9 @@ export default function SignupPage() {
 
     try {
       await registerUser({ name, email, password });
-      setSuccess('Account created successfully. You can now sign in.');
+      setSuccess(
+        'Account created successfully. Check your email before signing in.'
+      );
 
       setTimeout(() => {
         navigate('/login');

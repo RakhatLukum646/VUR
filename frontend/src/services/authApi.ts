@@ -1,153 +1,265 @@
-// In Docker the Nginx gateway forwards /auth/ to the auth service.
-// In local dev set VITE_AUTH_URL=http://localhost:8003 in .env.local.
+import type {
+  LoginRequest,
+  MessageResponse,
+  RecoveryCodesResponse,
+  SessionResponse,
+  TwoFactorSetupResponse,
+  User,
+} from '../types/auth';
+
 const AUTH_API_URL = import.meta.env.VITE_AUTH_URL ?? '';
 
-export interface RegisterRequest {
+interface RegisterRequest {
   name: string;
   email: string;
   password: string;
 }
 
-export interface LoginRequest {
-  email: string;
-  password: string;
-  twofa_code?: string;
+interface ApiError {
+  detail?: string;
+  message?: string;
 }
 
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  is_verified?: boolean;
-  two_factor_enabled?: boolean;
+async function parseJson<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  return response.json() as Promise<T>;
 }
 
-export interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  user: AuthUser;
+function buildUrl(path: string) {
+  return `${AUTH_API_URL}${path}`;
 }
 
-function getAuthHeaders(token: string) {
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
+async function request<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<{ data: T; response: Response }> {
+  const response = await fetch(buildUrl(path), {
+    credentials: 'include',
+    ...init,
+  });
+  const data = await parseJson<T>(response);
+  return { data, response };
+}
+
+function getErrorMessage(result: ApiError | MessageResponse, fallback: string) {
+  if ('detail' in result && result.detail) {
+    return result.detail;
+  }
+
+  return result.message || fallback;
+}
+
+async function refreshSession(): Promise<SessionResponse> {
+  const { data, response } = await request<SessionResponse | ApiError>(
+    '/auth/refresh',
+    {
+      method: 'POST',
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data as ApiError, 'Failed to refresh session'));
+  }
+
+  return data as SessionResponse;
+}
+
+async function requestWithSession<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
+  let { data, response } = await request<T | ApiError>(path, init);
+
+  if (response.status === 401) {
+    await refreshSession();
+    ({ data, response } = await request<T | ApiError>(path, init));
+  }
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data as ApiError, 'Request failed'));
+  }
+
+  return data as T;
 }
 
 export async function registerUser(data: RegisterRequest) {
-  const response = await fetch(`${AUTH_API_URL}/auth/register`, {
+  const { data: result, response } = await request<
+    { user_id: string; message: string } | ApiError
+  >('/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
 
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Registration failed');
-  return result;
-}
-
-export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
-  const response = await fetch(`${AUTH_API_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
   if (!response.ok) {
-    throw new Error(result.detail || 'Login failed');
+    throw new Error(getErrorMessage(result as ApiError, 'Registration failed'));
   }
 
-  return result;
+  return result as { user_id: string; message: string };
 }
 
-export async function getCurrentUser(token: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/me`, {
-    headers: getAuthHeaders(token),
+export async function loginUser(data: LoginRequest): Promise<SessionResponse> {
+  const { data: result, response } = await request<SessionResponse | ApiError>(
+    '/auth/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(result as ApiError, 'Login failed'));
+  }
+
+  return result as SessionResponse;
+}
+
+export async function logoutUser() {
+  return requestWithSession<MessageResponse>('/auth/logout', {
+    method: 'POST',
   });
-
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Failed to fetch profile');
-  return result;
 }
 
-export async function updateProfileName(token: string, name: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/profile`, {
+export async function logoutAllDevices() {
+  return requestWithSession<MessageResponse>('/auth/logout-all', {
+    method: 'POST',
+  });
+}
+
+export async function bootstrapSession(): Promise<SessionResponse | null> {
+  try {
+    // Call refresh to both validate the session and obtain a fresh access_token
+    // for use as a WebSocket auth credential.
+    const data = await refreshSession();
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function getCurrentUser() {
+  return requestWithSession<User>('/auth/me');
+}
+
+export async function updateProfileName(name: string) {
+  return requestWithSession<MessageResponse>('/auth/profile', {
     method: 'PATCH',
-    headers: getAuthHeaders(token),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
   });
-
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Failed to update name');
-  return result;
 }
 
 export async function changePassword(
-  token: string,
   currentPassword: string,
   newPassword: string
 ) {
-  const response = await fetch(`${AUTH_API_URL}/auth/password`, {
+  return requestWithSession<MessageResponse>('/auth/password', {
     method: 'PATCH',
-    headers: getAuthHeaders(token),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       current_password: currentPassword,
       new_password: newPassword,
     }),
   });
-
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Failed to change password');
-  return result;
 }
 
-export async function verifyEmail(tokenValue: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/verify-email`, {
+export async function verifyEmail(token: string) {
+  const { data, response } = await request<MessageResponse | ApiError>(
+    '/auth/verify-email',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data as ApiError, 'Email verification failed'));
+  }
+
+  return data as MessageResponse;
+}
+
+export async function resendVerification(email: string) {
+  const { data, response } = await request<MessageResponse | ApiError>(
+    '/auth/resend-verification',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(data as ApiError, 'Failed to resend verification email')
+    );
+  }
+
+  return data as MessageResponse;
+}
+
+export async function requestPasswordReset(email: string) {
+  const { data, response } = await request<MessageResponse | ApiError>(
+    '/auth/password-reset/request',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(data as ApiError, 'Failed to request password reset')
+    );
+  }
+
+  return data as MessageResponse;
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string) {
+  const { data, response } = await request<MessageResponse | ApiError>(
+    '/auth/password-reset/confirm',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data as ApiError, 'Failed to reset password'));
+  }
+
+  return data as MessageResponse;
+}
+
+export async function setup2FA() {
+  return requestWithSession<TwoFactorSetupResponse>('/auth/2fa/setup', {
+    method: 'POST',
+  });
+}
+
+export async function enable2FA(code: string) {
+  return requestWithSession<RecoveryCodesResponse>('/auth/2fa/enable', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: tokenValue }),
-  });
-
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Email verification failed');
-  return result;
-}
-
-export async function resendVerification(token: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/resend-verification`, {
-    method: 'POST',
-    headers: getAuthHeaders(token),
-  });
-
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Failed to resend email');
-  return result;
-}
-
-export async function setup2FA(token: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/2fa/setup`, {
-    method: 'POST',
-    headers: getAuthHeaders(token),
-  });
-
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Failed to setup 2FA');
-  return result;
-}
-
-export async function enable2FA(token: string, code: string) {
-  const response = await fetch(`${AUTH_API_URL}/auth/2fa/enable`, {
-    method: 'POST',
-    headers: getAuthHeaders(token),
     body: JSON.stringify({ code }),
   });
+}
 
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || 'Failed to enable 2FA');
-  return result;
+export async function regenerateRecoveryCodes(currentPassword: string) {
+  return requestWithSession<RecoveryCodesResponse>(
+    '/auth/2fa/recovery-codes/regenerate',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword }),
+    }
+  );
 }

@@ -1,6 +1,7 @@
 # Environment files
 .env
 .env.local
+AGENTS.md
 
 # Python virtual environments
 venv/
@@ -41,3 +42,19 @@ Thumbs.db
 
 # Logs
 *.log
+
+# TLS certificates (generated locally, never commit private keys)
+nginx/certs/*.key
+nginx/certs/*.crt
+
+# ML artifacts
+ml_training/data/
+ml_training/models/
+backend/media_pipe_service/app/models/*.joblib
+
+# Python cache
+__pycache__/
+*.pyc
+
+# datasets
+datasets/

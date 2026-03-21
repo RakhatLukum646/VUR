@@ -1,0 +1,38 @@
+[
+  {
+    "id": "en-fingerspell-hello",
+    "language": "en",
+    "sign_sequence": ["H", "E", "L", "L", "O"],
+    "expected_keywords": ["hello"]
+  },
+  {
+    "id": "en-fingerspell-thankyou",
+    "language": "en",
+    "sign_sequence": ["T", "H", "A", "N", "K", "Y", "O", "U"],
+    "expected_keywords": ["thank"]
+  },
+  {
+    "id": "ru-word-hello",
+    "language": "ru",
+    "sign_sequence": ["привет"],
+    "expected_keywords": ["привет"]
+  },
+  {
+    "id": "ru-phrase-thanks",
+    "language": "ru",
+    "sign_sequence": ["спасибо", "вам"],
+    "expected_keywords": ["спасибо", "вам"]
+  },
+  {
+    "id": "kz-phrase-greeting",
+    "language": "kz",
+    "sign_sequence": ["сәлем", "дос"],
+    "expected_keywords": ["сәлем", "дос"]
+  },
+  {
+    "id": "kz-word-thanks",
+    "language": "kz",
+    "sign_sequence": ["рақмет"],
+    "expected_keywords": ["рақмет"]
+  }
+]

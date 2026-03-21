@@ -1,7 +1,6 @@
 """Configuration settings for MediaPipe service."""
 
-import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -11,6 +10,7 @@ class Settings(BaseSettings):
     PORT: int = 8001
     HOST: str = "0.0.0.0"
     DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
     
     # MediaPipe settings
     CONFIDENCE_THRESHOLD: float = 0.7
@@ -20,13 +20,21 @@ class Settings(BaseSettings):
     
     # LLM Service
     LLM_SERVICE_URL: str = "http://localhost:8002"
-    
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost"
+
     # Sign buffer settings
     SIGN_BUFFER_TIMEOUT_MS: int = 1500  # Time before committing sign sequence
     MIN_SEQUENCE_LENGTH: int = 2
-    
-    class Config:
-        env_file = ".env"
+
+    model_config = SettingsConfigDict(env_file=".env")
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.CORS_ORIGINS.split(",")
+            if origin.strip()
+        ]
 
 
 settings = Settings()

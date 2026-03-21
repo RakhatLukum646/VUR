@@ -39,6 +39,10 @@ class Settings:
 
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     USE_REDIS: bool = os.getenv("USE_REDIS", "false").lower() == "true"
+    CORS_ORIGINS: str = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://localhost",
+    )
 
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "info")
 
@@ -48,6 +52,14 @@ class Settings:
     @property
     def is_configured(self) -> bool:
         return bool(self.GEMINI_API_KEY)
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.CORS_ORIGINS.split(",")
+            if origin.strip()
+        ]
 
 
 @lru_cache()

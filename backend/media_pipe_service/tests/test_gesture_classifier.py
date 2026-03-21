@@ -131,3 +131,16 @@ class TestGestureFeatures:
             for attr in ("thumb_curl", "idx_curl", "mid_curl", "ring_curl", "pink_curl"):
                 val = getattr(f, attr)
                 assert 0.0 <= val <= 1.0, f"{attr} out of range: {val}"
+
+
+class TestMLClassifier:
+    def test_returns_none_when_model_unavailable(self):
+        """MLClassifier.classify() short-circuits to (None, 0.0) when no
+        trained model file is present (the normal state in CI)."""
+        from app.models.ml_classifier import MLClassifier
+
+        clf = MLClassifier()
+        assert not clf.is_available
+        label, conf = clf.classify([[0.0, 0.0, 0.0]] * 21)
+        assert label is None
+        assert conf == 0.0

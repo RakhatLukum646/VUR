@@ -1,25 +1,30 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
+from jose import JWTError
 from bson import ObjectId
 
 from app.config import settings
 from app.db import users_collection
+from app.services.token_service import ACCESS_TOKEN_TYPE, decode_token
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
 ):
-    token = credentials.credentials
+    token = None
+    if credentials is not None:
+        token = credentials.credentials
+    else:
+        token = request.cookies.get(settings.access_cookie_name)
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.jwt_algorithm],
-        )
+        payload = decode_token(token, expected_type=ACCESS_TOKEN_TYPE)
         user_id = payload.get("sub")
 
         if not user_id:
@@ -33,3 +38,15 @@ async def get_current_user(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def get_current_verified_user(
+    current_user=Depends(get_current_user),
+):
+    if not current_user.get("is_verified", False):
+        raise HTTPException(
+            status_code=403,
+            detail="Email verification required",
+        )
+
+    return current_user

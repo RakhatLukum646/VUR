@@ -1,9 +1,10 @@
 """Session-based context management for conversations."""
+import asyncio
 import logging
 import uuid
-from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,34 @@ class SessionManager:
         self._sessions: Dict[str, Session] = {}
         self._max_sessions = max_sessions
         self._timeout_minutes = timeout_minutes
-        logger.info("SessionManager initialized")
+        self._cleanup_task: asyncio.Task | None = None
+        logger.info(
+            "SessionManager initialized max_sessions=%d timeout_minutes=%d",
+            max_sessions,
+            timeout_minutes,
+        )
+
+    def start_cleanup_loop(self, interval_seconds: int = 300) -> None:
+        """Start a background asyncio task that periodically evicts expired sessions."""
+        async def _loop() -> None:
+            while True:
+                await asyncio.sleep(interval_seconds)
+                removed = self.cleanup_expired()
+                if removed:
+                    logger.info(
+                        "ttl_cleanup removed=%d remaining=%d",
+                        removed,
+                        len(self._sessions),
+                    )
+
+        self._cleanup_task = asyncio.create_task(_loop())
+        logger.info("SessionManager cleanup loop started interval_seconds=%d", interval_seconds)
+
+    def stop_cleanup_loop(self) -> None:
+        """Cancel the background cleanup task."""
+        if self._cleanup_task:
+            self._cleanup_task.cancel()
+            self._cleanup_task = None
     
     def create_session(self) -> str:
         """Create a new session with a generated ID."""

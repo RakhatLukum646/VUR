@@ -2,7 +2,8 @@
 import logging
 from typing import List, Optional
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from app.config import get_settings, SYSTEM_PROMPT
 
@@ -23,12 +24,11 @@ class GeminiClient:
             return
 
         try:
-            genai.configure(api_key=self.settings.GEMINI_API_KEY)
-            self._model = genai.GenerativeModel(
-                model_name=self.settings.GEMINI_MODEL,
-                system_instruction=SYSTEM_PROMPT,
+            self._model = genai.Client(api_key=self.settings.GEMINI_API_KEY)
+            logger.info(
+                "Gemini client initialized with model: %s",
+                self.settings.GEMINI_MODEL,
             )
-            logger.info(f"Gemini client initialized with model: {self.settings.GEMINI_MODEL}")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {e}")
             raise
@@ -46,7 +46,15 @@ class GeminiClient:
         prompt = self._build_prompt(sign_sequence, context, language)
 
         try:
-            response = await self._model.generate_content_async(prompt)
+            response = await self._model.aio.models.generate_content(
+                model=self.settings.GEMINI_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.2,
+                    max_output_tokens=128,
+                ),
+            )
             translation = response.text.strip()
 
             return {

@@ -148,6 +148,30 @@ python scripts/train_classifier.py
 # The service loads it automatically on startup.
 ```
 
+## Evaluation And Benchmarks
+
+The repository now includes reproducible evaluation tooling for both the
+classifier and the translation service.
+
+```bash
+# Classifier metrics + confusion matrix
+cd backend/media_pipe_service
+source venv/bin/activate
+python scripts/evaluate_classifier.py --data data/landmarks.csv --out-dir reports
+
+# Translation latency + keyword quality baseline
+cd ../llm_service
+source venv/bin/activate
+python scripts/benchmark_translation.py --cases evaluation/translation_cases.json --out reports/translation_benchmark.json
+```
+
+Generated artifacts:
+- `backend/media_pipe_service/reports/classifier_metrics.json`
+- `backend/media_pipe_service/reports/confusion_matrix.csv`
+- `backend/llm_service/reports/translation_benchmark.json`
+
+See `docs/evaluation.md` for the recommended defense-ready workflow.
+
 ---
 
 ## Environment Variables
