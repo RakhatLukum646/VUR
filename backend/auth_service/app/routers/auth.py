@@ -35,6 +35,11 @@ from app.services.password_reset_service import (
     create_password_reset_token,
 )
 from app.services.password_service import hash_password, verify_password
+from app.services.csrf_service import (
+    CSRF_COOKIE_NAME,
+    generate_csrf_token,
+    validate_csrf,
+)
 from app.services.session_service import (
     clear_auth_cookies,
     get_refresh_token_from_request,
@@ -60,6 +65,21 @@ from app.services.twofa_service import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.get("/csrf-token")
+async def get_csrf_token(response: Response):
+    token = generate_csrf_token()
+    response.set_cookie(
+        CSRF_COOKIE_NAME,
+        token,
+        httponly=False,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        path="/",
+        max_age=3600,
+    )
+    return {"csrf_token": token}
 
 
 def _public_user(user: dict) -> dict:
@@ -122,6 +142,7 @@ async def register(
             settings.register_rate_limit_window_seconds,
         )
     ),
+    __: None = Depends(validate_csrf),
 ):
     existing = await users_collection.find_one({"email": data.email})
     if existing:
@@ -160,6 +181,7 @@ async def login(
             settings.auth_rate_limit_window_seconds,
         )
     ),
+    __: None = Depends(validate_csrf),
 ):
     user = await users_collection.find_one({"email": data.email})
     if not user or not verify_password(data.password, user["password_hash"]):
@@ -223,6 +245,7 @@ async def logout(
             settings.auth_rate_limit_window_seconds,
         )
     ),
+    __: None = Depends(validate_csrf),
 ):
     raw_refresh_token = get_refresh_token_from_request(
         request,
@@ -338,6 +361,7 @@ async def request_password_reset(
             settings.auth_rate_limit_window_seconds,
         )
     ),
+    __: None = Depends(validate_csrf),
 ):
     user = await users_collection.find_one({"email": data.email})
     if user:
@@ -350,7 +374,10 @@ async def request_password_reset(
 
 
 @router.post("/password-reset/confirm", response_model=MessageResponse)
-async def confirm_password_reset(data: PasswordResetConfirmRequest):
+async def confirm_password_reset(
+    data: PasswordResetConfirmRequest,
+    __: None = Depends(validate_csrf),
+):
     user_id = await consume_password_reset_token(data.token)
     if not user_id:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")

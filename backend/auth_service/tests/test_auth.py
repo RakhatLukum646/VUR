@@ -89,7 +89,7 @@ def _reload_app_modules():
 def auth_env(monkeypatch):
     monkeypatch.setenv("mongodb_url", "mongodb://localhost:27017")
     monkeypatch.setenv("mongodb_db", "vur_test")
-    monkeypatch.setenv("jwt_secret", "test-secret")
+    monkeypatch.setenv("jwt_secret", "test-secret-key-for-auth-testing-1234567")
     monkeypatch.setenv("email_host", "smtp.example.com")
     monkeypatch.setenv("email_port", "587")
     monkeypatch.setenv("email_user", "noreply@example.com")
@@ -170,6 +170,11 @@ def client(auth_env, monkeypatch):
         }
 
 
+def _get_csrf_token(test_client) -> str:
+    response = test_client.get("/auth/csrf-token")
+    return response.json()["csrf_token"]
+
+
 def _seed_user(client, **overrides):
     password = overrides.pop("password", "supersecret")
     document = {
@@ -187,6 +192,7 @@ def _seed_user(client, **overrides):
 
 
 def test_register_creates_user_and_sends_verification_email(client):
+    csrf_token = _get_csrf_token(client["client"])
     response = client["client"].post(
         "/auth/register",
         json={
@@ -194,6 +200,7 @@ def test_register_creates_user_and_sends_verification_email(client):
             "email": "new@example.com",
             "password": "supersecret",
         },
+        headers={"X-CSRF-Token": csrf_token},
     )
 
     assert response.status_code == 200
@@ -210,10 +217,12 @@ def test_register_creates_user_and_sends_verification_email(client):
 
 def test_login_requires_verified_email(client):
     _seed_user(client, is_verified=False, verification_token="pending-token")
+    csrf_token = _get_csrf_token(client["client"])
 
     response = client["client"].post(
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
+        headers={"X-CSRF-Token": csrf_token},
     )
 
     assert response.status_code == 403
@@ -245,10 +254,12 @@ def test_resend_verification_works_without_authentication(client):
 
 def test_login_sets_httponly_cookies_and_creates_session(client):
     user = _seed_user(client)
+    csrf_token = _get_csrf_token(client["client"])
 
     response = client["client"].post(
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
+        headers={"X-CSRF-Token": csrf_token},
     )
 
     assert response.status_code == 200
@@ -272,10 +283,12 @@ def test_login_sets_httponly_cookies_and_creates_session(client):
 
 def test_me_accepts_access_cookie_and_rejects_refresh_token(client):
     _seed_user(client)
+    csrf_token = _get_csrf_token(client["client"])
 
     login_response = client["client"].post(
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
+        headers={"X-CSRF-Token": csrf_token},
     )
     assert login_response.status_code == 200
 
@@ -291,10 +304,12 @@ def test_me_accepts_access_cookie_and_rejects_refresh_token(client):
 
 def test_refresh_rotates_session_and_revokes_previous_token(client):
     _seed_user(client)
+    csrf_token = _get_csrf_token(client["client"])
 
     login_response = client["client"].post(
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
+        headers={"X-CSRF-Token": csrf_token},
     )
     old_refresh_token = login_response.cookies.get("vur_refresh_token")
     old_refresh_payload = client["token_service"].decode_token(
@@ -330,14 +345,18 @@ def test_refresh_rotates_session_and_revokes_previous_token(client):
 
 def test_password_reset_flow_updates_password_and_revokes_sessions(client):
     user = _seed_user(client)
+    csrf_token = _get_csrf_token(client["client"])
+
     client["client"].post(
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
+        headers={"X-CSRF-Token": csrf_token},
     )
 
     request_response = client["client"].post(
         "/auth/password-reset/request",
         json={"email": "user@example.com"},
+        headers={"X-CSRF-Token": csrf_token},
     )
 
     assert request_response.status_code == 200
@@ -348,6 +367,7 @@ def test_password_reset_flow_updates_password_and_revokes_sessions(client):
     confirm_response = client["client"].post(
         "/auth/password-reset/confirm",
         json={"token": reset_token, "new_password": "newsecret"},
+        headers={"X-CSRF-Token": csrf_token},
     )
 
     assert confirm_response.status_code == 200
@@ -370,10 +390,12 @@ def test_password_reset_flow_updates_password_and_revokes_sessions(client):
 
 def test_2fa_recovery_code_can_be_used_once(client):
     _seed_user(client)
+    csrf_token = _get_csrf_token(client["client"])
 
     login_response = client["client"].post(
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
+        headers={"X-CSRF-Token": csrf_token},
     )
     assert login_response.status_code == 200
 
@@ -386,9 +408,13 @@ def test_2fa_recovery_code_can_be_used_once(client):
     assert enable_response.status_code == 200
     recovery_code = enable_response.json()["recovery_codes"][0]
 
-    logout_response = client["client"].post("/auth/logout")
+    logout_response = client["client"].post(
+        "/auth/logout",
+        headers={"X-CSRF-Token": csrf_token},
+    )
     assert logout_response.status_code == 200
 
+    csrf_token = _get_csrf_token(client["client"])
     recovery_login = client["client"].post(
         "/auth/login",
         json={
@@ -396,9 +422,11 @@ def test_2fa_recovery_code_can_be_used_once(client):
             "password": "supersecret",
             "recovery_code": recovery_code,
         },
+        headers={"X-CSRF-Token": csrf_token},
     )
     assert recovery_login.status_code == 200
 
+    csrf_token = _get_csrf_token(client["client"])
     reused_code_login = client["client"].post(
         "/auth/login",
         json={
@@ -406,22 +434,26 @@ def test_2fa_recovery_code_can_be_used_once(client):
             "password": "supersecret",
             "recovery_code": recovery_code,
         },
+        headers={"X-CSRF-Token": csrf_token},
     )
     assert reused_code_login.status_code == 401
     assert reused_code_login.json()["detail"] == "Invalid recovery code"
 
 
 def test_login_rate_limit_returns_429_after_threshold(client):
+    csrf_token = _get_csrf_token(client["client"])
     for _ in range(10):
         response = client["client"].post(
             "/auth/login",
             json={"email": "missing@example.com", "password": "badpass"},
+            headers={"X-CSRF-Token": csrf_token},
         )
         assert response.status_code == 401
 
     limited = client["client"].post(
         "/auth/login",
         json={"email": "missing@example.com", "password": "badpass"},
+        headers={"X-CSRF-Token": csrf_token},
     )
 
     assert limited.status_code == 429

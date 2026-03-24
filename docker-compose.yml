@@ -29,6 +29,17 @@ services:
       timeout: 5s
       retries: 3
 
+  # ── TLS bootstrap — generates self-signed certs on first run ──
+  tls-init:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/gen-certs.sh:/gen-certs.sh:ro
+    entrypoint: ["/bin/sh", "/gen-certs.sh"]
+    environment:
+      - CERT_DIR_OVERRIDE=/etc/nginx/certs
+    restart: "no"
+
   # ── API Gateway (Nginx) — single public entry point ───────
   gateway:
     image: nginx:alpine
@@ -39,6 +50,8 @@ services:
       - ./nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
+      tls-init:
+        condition: service_completed_successfully
       frontend:
         condition: service_started
       media-pipe:
@@ -56,7 +69,7 @@ services:
       dockerfile: Dockerfile
     # Not exposed directly — accessed via gateway
     expose:
-      - "80"
+      - "8080"
     depends_on:
       media-pipe:
         condition: service_healthy
@@ -75,7 +88,7 @@ services:
       - PORT=8001
       - CONFIDENCE_THRESHOLD=0.7
       - LLM_SERVICE_URL=http://llm-service:8002
-      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_SECRET=${JWT_SECRET}
       - JWT_ALGORITHM=HS256
     depends_on:
       llm-service:
@@ -142,7 +155,7 @@ services:
     environment:
       - mongodb_url=${MONGODB_URL:-mongodb://mongo:27017}
       - mongodb_db=${MONGODB_DB:-vur}
-      - jwt_secret=${JWT_SECRET:-change-me-in-production}
+      - jwt_secret=${JWT_SECRET}
       - frontend_url=http://localhost
       - cors_origins=${CORS_ORIGINS:-http://localhost:5173,http://localhost}
       - email_host=${EMAIL_HOST:-smtp.example.com}

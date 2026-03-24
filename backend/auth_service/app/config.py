@@ -1,4 +1,7 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BANNED_SECRETS = {"change-me-in-production", "changeme", "secret", ""}
 
 
 class Settings(BaseSettings):
@@ -6,6 +9,20 @@ class Settings(BaseSettings):
     mongodb_db: str
 
     jwt_secret: str
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def jwt_secret_must_be_strong(cls, v: str) -> str:
+        if v.lower() in _BANNED_SECRETS:
+            raise ValueError(
+                "jwt_secret is set to a known insecure default. "
+                "Generate a strong secret: openssl rand -hex 32"
+            )
+        if len(v) < 32:
+            raise ValueError(
+                "jwt_secret must be at least 32 characters long."
+            )
+        return v
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7

@@ -20,7 +20,7 @@ def _reload_main_module():
 def auth_env(monkeypatch):
     monkeypatch.setenv("mongodb_url", "mongodb://localhost:27017")
     monkeypatch.setenv("mongodb_db", "vur_test")
-    monkeypatch.setenv("jwt_secret", "test-secret")
+    monkeypatch.setenv("jwt_secret", "test-secret-key-for-health-testing-1234567")
     monkeypatch.setenv("email_host", "smtp.example.com")
     monkeypatch.setenv("email_port", "587")
     monkeypatch.setenv("email_user", "noreply@example.com")
