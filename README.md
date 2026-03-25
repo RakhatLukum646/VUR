@@ -30,12 +30,13 @@ Browser
            │ internal Docker network
   ┌────────┼────────────┬─────────────┐
   ▼        ▼            ▼             ▼
-Frontend  Auth       MediaPipe       LLM
+Frontend  Auth       MediaPipe ───► LLM
  :8080    :8003        :8001         :8002
            │             │             │
-         MongoDB       (ResNet18)    Gemini API
-          :27017      HuggingFace    + Redis
-                                      :6379
+         MongoDB       ResNet18     Gemini API
+          :27017      (HuggingFace)   │
+                                    Redis
+                                     :6379
 ```
 
 ---
