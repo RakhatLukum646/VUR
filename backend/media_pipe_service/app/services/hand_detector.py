@@ -8,6 +8,9 @@ import mediapipe as mp
 from typing import Optional, Tuple, List
 from app.config import settings
 
+# Padding fraction applied to each side of the bounding box when cropping.
+_CROP_PADDING = 0.20
+
 
 class HandDetector:
     """MediaPipe hand landmark detector."""
@@ -47,29 +50,32 @@ class HandDetector:
         except Exception as e:
             raise ValueError(f"Image decoding error: {str(e)}")
     
-    def detect(self, base64_image: str) -> Tuple[bool, Optional[List], Optional[List], Optional[str], float]:
+    def detect(self, base64_image: str) -> Tuple[bool, Optional[List], Optional[List], Optional[str], float, Optional[np.ndarray]]:
         """
         Detect hand landmarks in image.
 
         Returns:
-            Tuple of (hand_detected, normalized_landmarks, screen_landmarks, handedness, confidence)
-            - normalized_landmarks: wrist-relative unit-scaled coords for classifier
+            Tuple of (hand_detected, normalized_landmarks, screen_landmarks,
+                      handedness, confidence, hand_crop)
+            - normalized_landmarks: wrist-relative unit-scaled coords for ML classifier
             - screen_landmarks: raw 0-1 image coords [[x, y], ...] for overlay drawing
+            - hand_crop: RGB uint8 array of the cropped hand region (for ResNet),
+                         or None when no hand is detected
         """
         try:
             image = self.decode_frame(base64_image)
-            
+
             # Process with MediaPipe
             results = self.hands.process(image)
-            
+
             if not results.multi_hand_landmarks:
-                return False, None, None, None, 0.0
-            
+                return False, None, None, None, 0.0, None
+
             # Get first hand
             hand_landmarks = results.multi_hand_landmarks[0]
             handedness = results.multi_handedness[0].classification[0].label
             confidence = results.multi_handedness[0].classification[0].score
-            
+
             # Raw 0-1 screen coordinates for frontend overlay
             screen_landmarks = []
             raw_for_norm = []
@@ -80,11 +86,54 @@ class HandDetector:
             # Normalize to wrist-relative, unit-scaled coordinates for classifier
             normalized_landmarks = self.normalize_landmarks(raw_for_norm)
 
-            return True, normalized_landmarks, screen_landmarks, handedness, confidence
-            
+            # Crop the hand region for the ResNet classifier
+            hand_crop = self.extract_hand_crop(image, screen_landmarks)
+
+            return True, normalized_landmarks, screen_landmarks, handedness, confidence, hand_crop
+
         except Exception as e:
             print(f"Detection error: {e}")
-            return False, None, None, None, 0.0
+            return False, None, None, None, 0.0, None
+
+    def extract_hand_crop(
+        self,
+        image: np.ndarray,
+        screen_landmarks: Optional[List],
+        padding: float = _CROP_PADDING,
+    ) -> Optional[np.ndarray]:
+        """Crop the bounding box around the hand from the full frame.
+
+        Args:
+            image: Full RGB frame as a numpy array (H × W × 3).
+            screen_landmarks: List of [x, y] coordinates in 0-1 image space.
+            padding: Fraction of the bounding-box size to add on each side.
+
+        Returns:
+            Cropped RGB numpy array, or None if landmarks are missing/invalid.
+        """
+        if not screen_landmarks:
+            return None
+
+        h, w = image.shape[:2]
+
+        xs = [lm[0] for lm in screen_landmarks]
+        ys = [lm[1] for lm in screen_landmarks]
+
+        bw = max(xs) - min(xs)
+        bh = max(ys) - min(ys)
+
+        x_min = max(0.0, min(xs) - padding * bw)
+        x_max = min(1.0, max(xs) + padding * bw)
+        y_min = max(0.0, min(ys) - padding * bh)
+        y_max = min(1.0, max(ys) + padding * bh)
+
+        x1, x2 = int(x_min * w), int(x_max * w)
+        y1, y2 = int(y_min * h), int(y_max * h)
+
+        if x2 <= x1 or y2 <= y1:
+            return None
+
+        return image[y1:y2, x1:x2].copy()
     
     def normalize_landmarks(self, landmarks: List[List[float]]) -> List[List[float]]:
         """

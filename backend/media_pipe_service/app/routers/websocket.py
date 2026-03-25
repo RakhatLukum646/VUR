@@ -1,18 +1,22 @@
-"""WebSocket endpoint for real-time sign detection."""
+"""WebSocket endpoint for real-time sign detection — ResNet18 only pipeline."""
 
 import asyncio
+import base64
 import json
 import logging
-from typing import Dict
+import os
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, Optional, Set
 
+import cv2
 import httpx
+import numpy as np
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from jose import JWTError
 
 from app.config import settings
 from app.services.ws_auth import verify_ws_token
 from app.models.gesture_classifier import GestureClassifier
-from app.services.hand_detector import HandDetector
 from app.services.sign_buffer import SignBuffer
 
 websocket_router = APIRouter()
@@ -20,44 +24,55 @@ logger = logging.getLogger(__name__)
 
 active_connections: Dict[str, WebSocket] = {}
 session_languages: Dict[str, str] = {}
-hand_detector = HandDetector()
 sign_buffer = SignBuffer()
 gesture_classifier = GestureClassifier()
 
+# Thread pool for ResNet18 inference (CPU-bound, releases GIL).
+_workers = min(4, os.cpu_count() or 2)
+_inference_executor = ThreadPoolExecutor(max_workers=_workers, thread_name_prefix="resnet")
+
+# Per-session processing gate — drop incoming frame if one is already running.
+_processing_sessions: Set[str] = set()
+# Buffer for the latest frame that arrived while a session was busy.
+_pending_frame: Dict[str, dict] = {}
+
+
+def _decode_frame(b64: str) -> np.ndarray:
+    """Decode a base64 image string to a center-cropped RGB numpy array.
+
+    ResNet was trained on hand crops, not full frames.  Taking a square
+    center crop keeps the hand large in the 224×224 input and dramatically
+    improves recognition of fine-detail signs like O and V.
+    """
+    if "," in b64:
+        b64 = b64.split(",")[1]
+    img_bytes = base64.b64decode(b64)
+    arr = np.frombuffer(img_bytes, np.uint8)
+    bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if bgr is None:
+        raise ValueError("Failed to decode image frame.")
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+    # Square center crop — assumes the signer holds their hand near the
+    # center of the frame.  Crop 60 % of the shorter axis so the hand
+    # fills the resulting square rather than being a small speck.
+    h, w = rgb.shape[:2]
+    side = int(min(h, w) * 0.6)
+    cy, cx = h // 2, w // 2
+    y1, y2 = cy - side // 2, cy + side // 2
+    x1, x2 = cx - side // 2, cx + side // 2
+    return rgb[y1:y2, x1:x2]
+
 
 def _describe_frame_quality(
-    screen_landmarks: list[list[float]] | None,
-    detection_confidence: float,
-    sign: str | None,
-    sign_confidence: float,
+    sign: Optional[str],
+    confidence: float,
     stability: float,
 ) -> tuple[float, str]:
-    if not screen_landmarks:
-        return 0.0, "Show one hand in the frame to start detection."
-
-    xs = [point[0] for point in screen_landmarks]
-    ys = [point[1] for point in screen_landmarks]
-    width = max(xs) - min(xs)
-    height = max(ys) - min(ys)
-    area = width * height
-    center_x = (max(xs) + min(xs)) / 2
-    center_y = (max(ys) + min(ys)) / 2
-
-    if area < 0.04:
-        return 0.35, "Move your hand closer to the camera."
-
-    if center_x < 0.2 or center_x > 0.8 or center_y < 0.15 or center_y > 0.85:
-        return 0.45, "Center your hand in the frame."
-
-    if not sign or sign_confidence < settings.CONFIDENCE_THRESHOLD:
-        return 0.55, "Gesture unclear. Hold one clear hand shape for a moment."
-
-    if detection_confidence < 0.75:
-        return 0.6, "Keep your palm visible and improve lighting."
-
+    if sign is None or confidence < settings.CONFIDENCE_THRESHOLD:
+        return 0.5, "Show your hand sign clearly to the camera."
     if stability < 1.0:
         return 0.75, "Hold the gesture steady to confirm the sign."
-
     return 0.92, "Gesture locked. Continue signing or pause to translate."
 
 
@@ -81,8 +96,18 @@ async def websocket_endpoint(
     try:
         while True:
             data = await websocket.receive_text()
-            message = json.loads(data)
 
+            # Drain any stale frames that piled up during inference —
+            # only the most recent frame matters for real-time recognition.
+            while True:
+                try:
+                    data = await asyncio.wait_for(
+                        websocket.receive_text(), timeout=0.001
+                    )
+                except asyncio.TimeoutError:
+                    break
+
+            message = json.loads(data)
             msg_type = message.get("type")
             payload = message.get("payload", {})
 
@@ -118,7 +143,15 @@ async def websocket_endpoint(
 
 
 async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
-    """Process video frame, classify gesture, and relay results."""
+    """Process video frame — save as pending if inference is already running."""
+    if session_id in _processing_sessions:
+        _pending_frame[session_id] = payload
+        return
+    await _process_frame(websocket, payload, session_id)
+
+
+async def _process_frame(websocket: WebSocket, payload: dict, session_id: str):
+    """Decode frame → ResNet18 → update sign buffer → send result."""
     try:
         image_b64 = payload.get("image")
         timestamp = payload.get("timestamp", 0)
@@ -139,10 +172,24 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
             })
             return
 
-        hand_detected, normalized_landmarks, screen_landmarks, handedness, detection_conf = hand_detector.detect(image_b64)
+        def _run_inference(img_b64: str):
+            """Blocking: decode + ResNet18 predict. Runs in thread pool."""
+            image = _decode_frame(img_b64)
+            result = gesture_classifier.classify_image(image)
+            return result  # (sign, confidence) or (None, 0.0)
+
+        _processing_sessions.add(session_id)
+        try:
+            loop = asyncio.get_event_loop()
+            sign, confidence = await loop.run_in_executor(
+                _inference_executor, _run_inference, image_b64
+            )
+        finally:
+            _processing_sessions.discard(session_id)
+
+        hand_detected = sign is not None and confidence >= settings.CONFIDENCE_THRESHOLD
 
         if not hand_detected:
-            # Record no-hand frame; trigger translation if rest boundary reached
             stats = sign_buffer.get_session_stats(session_id)
             buffered_signs = stats["signs_count"]
             should_send = sign_buffer.record_no_hand(session_id)
@@ -173,19 +220,10 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
             })
             return
 
-        sign, confidence = gesture_classifier.classify(normalized_landmarks)
-        is_new = False
-
-        if sign and confidence >= settings.CONFIDENCE_THRESHOLD:
-            is_new = sign_buffer.add_sign(session_id, sign, confidence)
-
+        is_new = sign_buffer.add_sign(session_id, sign, confidence)
         stats = sign_buffer.get_session_stats(session_id)
         frame_quality, guidance = _describe_frame_quality(
-            screen_landmarks,
-            detection_conf,
-            sign,
-            confidence,
-            stats["stability_progress"],
+            sign, confidence, stats["stability_progress"]
         )
         commit_ready = False
 
@@ -199,11 +237,7 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
             asyncio.create_task(
                 send_to_llm_and_relay(session_id, sequence, lang)
             )
-            stats = {
-                **stats,
-                "signs_count": committed_count,
-                "stability_progress": 0,
-            }
+            stats = {**stats, "signs_count": committed_count, "stability_progress": 0}
 
         await websocket.send_json({
             "type": "detection",
@@ -211,18 +245,19 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
                 "sign": sign,
                 "confidence": confidence,
                 "hand_detected": True,
-                "landmarks": screen_landmarks,
                 "guidance": guidance,
                 "frame_quality": frame_quality,
                 "stability": stats["stability_progress"],
                 "sequence_length": stats["signs_count"],
                 "commit_ready": commit_ready,
-                "detection_confidence": detection_conf,
                 "timestamp": timestamp,
             },
         })
 
     except Exception as e:
+        # Client disconnected cleanly — not a real error, nothing to log.
+        if type(e).__name__ in ("ClientDisconnected", "ConnectionClosedOK", "ConnectionClosedError"):
+            return
         logger.exception("frame_processing_error session_id=%s", session_id)
         try:
             await websocket.send_json({
@@ -231,6 +266,10 @@ async def handle_frame(websocket: WebSocket, payload: dict, session_id: str):
             })
         except Exception:
             pass
+    finally:
+        pending = _pending_frame.pop(session_id, None)
+        if pending is not None:
+            asyncio.create_task(_process_frame(websocket, pending, session_id))
 
 
 async def handle_command(websocket: WebSocket, payload: dict):

@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     SIGN_BUFFER_TIMEOUT_MS: int = 1500  # Time before committing sign sequence
     MIN_SEQUENCE_LENGTH: int = 2
 
+    # ResNet18 classifier settings
+    USE_RESNET: bool = True
+    RESNET_MODEL_PATH: str = ""  # Empty → auto-download from HuggingFace
+    RESNET_DEVICE: str = "cpu"
+
     model_config = SettingsConfigDict(env_file=".env")
 
     @property

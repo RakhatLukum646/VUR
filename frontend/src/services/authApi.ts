@@ -8,6 +8,8 @@ import type {
 } from '../types/auth';
 
 const AUTH_API_URL = import.meta.env.VITE_AUTH_URL ?? '';
+const CSRF_COOKIE_NAME = 'vur_csrf_token';
+const CSRF_HEADER_NAME = 'x-csrf-token';
 
 interface RegisterRequest {
   name: string;
@@ -32,6 +34,24 @@ function buildUrl(path: string) {
   return `${AUTH_API_URL}${path}`;
 }
 
+function readCsrfCookie(): string | null {
+  const match = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith(`${CSRF_COOKIE_NAME}=`));
+  return match ? match.split('=')[1] : null;
+}
+
+async function ensureCsrfToken(): Promise<string> {
+  const existing = readCsrfCookie();
+  if (existing) return existing;
+
+  const response = await fetch(buildUrl('/auth/csrf-token'), {
+    credentials: 'include',
+  });
+  const data = await response.json() as { csrf_token: string };
+  return data.csrf_token;
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {}
@@ -42,6 +62,16 @@ async function request<T>(
   });
   const data = await parseJson<T>(response);
   return { data, response };
+}
+
+async function csrfRequest<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<{ data: T; response: Response }> {
+  const token = await ensureCsrfToken();
+  const headers = new Headers(init.headers);
+  headers.set(CSRF_HEADER_NAME, token);
+  return request<T>(path, { ...init, headers });
 }
 
 function getErrorMessage(result: ApiError | MessageResponse, fallback: string) {
@@ -86,7 +116,7 @@ async function requestWithSession<T>(
 }
 
 export async function registerUser(data: RegisterRequest) {
-  const { data: result, response } = await request<
+  const { data: result, response } = await csrfRequest<
     { user_id: string; message: string } | ApiError
   >('/auth/register', {
     method: 'POST',
@@ -102,7 +132,7 @@ export async function registerUser(data: RegisterRequest) {
 }
 
 export async function loginUser(data: LoginRequest): Promise<SessionResponse> {
-  const { data: result, response } = await request<SessionResponse | ApiError>(
+  const { data: result, response } = await csrfRequest<SessionResponse | ApiError>(
     '/auth/login',
     {
       method: 'POST',
@@ -119,8 +149,10 @@ export async function loginUser(data: LoginRequest): Promise<SessionResponse> {
 }
 
 export async function logoutUser() {
+  const token = await ensureCsrfToken();
   return requestWithSession<MessageResponse>('/auth/logout', {
     method: 'POST',
+    headers: { [CSRF_HEADER_NAME]: token },
   });
 }
 
@@ -204,7 +236,7 @@ export async function resendVerification(email: string) {
 }
 
 export async function requestPasswordReset(email: string) {
-  const { data, response } = await request<MessageResponse | ApiError>(
+  const { data, response } = await csrfRequest<MessageResponse | ApiError>(
     '/auth/password-reset/request',
     {
       method: 'POST',
@@ -223,7 +255,7 @@ export async function requestPasswordReset(email: string) {
 }
 
 export async function confirmPasswordReset(token: string, newPassword: string) {
-  const { data, response } = await request<MessageResponse | ApiError>(
+  const { data, response } = await csrfRequest<MessageResponse | ApiError>(
     '/auth/password-reset/confirm',
     {
       method: 'POST',

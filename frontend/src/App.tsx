@@ -29,7 +29,7 @@ function App() {
 
   useEffect(() => {
     wsRef.current = ws;
-  });
+  }, [ws]);
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();

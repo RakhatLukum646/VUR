@@ -27,6 +27,7 @@ import numpy as np
 
 from app.config import settings
 from app.models.ml_classifier import MLClassifier
+from app.models.resnet_classifier import ResNetClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -146,27 +147,85 @@ class GestureClassifier:
     def __init__(self):
         self.confidence_threshold = settings.CONFIDENCE_THRESHOLD
         t0 = time.perf_counter()
+
+        # ResNet18 — primary classifier (image-based, 99.6% accuracy on ASL A-Z)
+        self._resnet = ResNetClassifier(
+            confidence_threshold=self.confidence_threshold,
+            device=settings.RESNET_DEVICE,
+        )
+        if settings.USE_RESNET:
+            try:
+                self._resnet.load(settings.RESNET_MODEL_PATH or None)
+                logger.info(
+                    "resnet_loaded classifier=ResNet18 confidence_threshold=%.2f",
+                    self.confidence_threshold,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "resnet_load_failed error=%s — falling back to MLP/heuristic", exc
+                )
+
+        # MLP — secondary classifier (landmark-based)
         self._ml = MLClassifier()
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        if self._ml.is_available:
+
+        if self._resnet.is_loaded:
             logger.info(
-                "ml_model_loaded classifier=MLP elapsed_ms=%.1f confidence_threshold=%.2f",
+                "classifier_ready primary=ResNet18 elapsed_ms=%.1f", elapsed_ms
+            )
+        elif self._ml.is_available:
+            logger.info(
+                "classifier_ready primary=MLP elapsed_ms=%.1f confidence_threshold=%.2f",
                 elapsed_ms,
                 self.confidence_threshold,
             )
         else:
             logger.warning(
-                "ml_model_unavailable classifier=heuristic elapsed_ms=%.1f confidence_threshold=%.2f",
+                "classifier_ready primary=heuristic elapsed_ms=%.1f confidence_threshold=%.2f",
                 elapsed_ms,
                 self.confidence_threshold,
             )
 
     # ------------------------------------------------------------------
-    def classify(self, landmarks: list) -> Tuple[Optional[str], float]:
+    def classify_image(self, image: np.ndarray) -> Tuple[Optional[str], float]:
+        """ResNet-only classification directly from an image (no landmarks needed).
+
+        Args:
+            image: RGB numpy array, any size — will be resized to 224×224 internally.
+
+        Returns:
+            (sign, confidence) or (None, 0.0) if model not loaded or below threshold.
+        """
+        if not self._resnet.is_loaded:
+            return None, 0.0
+        result = self._resnet.predict(image)
+        return result if result is not None else (None, 0.0)
+
+    # ------------------------------------------------------------------
+    def classify(
+        self,
+        landmarks: list,
+        image: Optional[np.ndarray] = None,
+    ) -> Tuple[Optional[str], float]:
+        """Classify gesture, trying classifiers in priority order.
+
+        Args:
+            landmarks: 21 wrist-relative unit-scaled landmark coordinates.
+            image: Optional RGB hand-crop array for the ResNet18 classifier.
+
+        Returns:
+            (sign, confidence) or (None, 0.0).
+        """
         if not landmarks or len(landmarks) < 21:
             return None, 0.0
 
-        # --- ML path ---------------------------------------------------
+        # --- ResNet18 path (primary) ------------------------------------
+        if self._resnet.is_loaded and image is not None:
+            result = self._resnet.predict(image)
+            if result is not None:
+                return result
+
+        # --- MLP path (secondary) ---------------------------------------
         if self._ml.is_available:
             sign, conf = self._ml.classify(landmarks)
             if sign and conf >= self.confidence_threshold:
