@@ -8,6 +8,7 @@ Run slow only:      pytest tests/test_resnet_classifier.py -m slow
 Run everything:     pytest tests/test_resnet_classifier.py
 """
 
+import importlib.util
 import sys
 import os
 from pathlib import Path
@@ -15,6 +16,9 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+
+_torch_available = importlib.util.find_spec("torch") is not None
+_skip_no_torch = pytest.mark.skipif(not _torch_available, reason="torch not installed")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -59,6 +63,7 @@ class TestResNetClassifierInit:
 # Phase 2 — Preprocessing
 # ---------------------------------------------------------------------------
 
+@_skip_no_torch
 class TestPreprocessing:
     """_preprocess() must produce a (1, 3, 224, 224) float32 tensor."""
 
@@ -179,6 +184,7 @@ def _make_loaded_clf(bias_index: int = 0, confidence_threshold: float = 0.5):
     return clf
 
 
+@_skip_no_torch
 class TestPredictWithMockModel:
     """predict() returns (letter, confidence) when model is loaded."""
 
@@ -246,6 +252,7 @@ class TestPredictWithMockModel:
 # Phase 6 — Model loading from file
 # ---------------------------------------------------------------------------
 
+@_skip_no_torch
 class TestModelLoading:
     """load(path) must set is_loaded=True and put model in eval mode."""
 
@@ -435,6 +442,7 @@ class TestHandDetectorDetectReturnsCrop:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.slow
+@_skip_no_torch
 class TestHuggingFaceIntegration:
     """Downloads the real model from HuggingFace — requires internet access."""
 

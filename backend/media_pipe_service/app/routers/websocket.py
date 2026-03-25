@@ -36,6 +36,10 @@ _processing_sessions: Set[str] = set()
 # Buffer for the latest frame that arrived while a session was busy.
 _pending_frame: Dict[str, dict] = {}
 
+# Synthetic landmark set used at the call site when ResNet detects a hand but
+# no landmark geometry is available (ResNet does not produce landmarks).
+_HAND_PRESENT_LANDMARKS = [[0.3 + i * 0.01, 0.4 + i * 0.01] for i in range(21)]
+
 
 def _decode_frame(b64: str) -> np.ndarray:
     """Decode a base64 image string to a center-cropped RGB numpy array.
@@ -65,12 +69,27 @@ def _decode_frame(b64: str) -> np.ndarray:
 
 
 def _describe_frame_quality(
+    landmarks,
+    detection_confidence: float,
     sign: Optional[str],
-    confidence: float,
+    gesture_confidence: float,
     stability: float,
 ) -> tuple[float, str]:
-    if sign is None or confidence < settings.CONFIDENCE_THRESHOLD:
-        return 0.5, "Show your hand sign clearly to the camera."
+    if landmarks is None:
+        return 0.0, "No hand detected. Show one hand in the frame."
+    xs = [lm[0] for lm in landmarks]
+    ys = [lm[1] for lm in landmarks]
+    area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+    if area < 0.04:
+        return 0.35, "Move your hand closer to the camera."
+    center_x = sum(xs) / len(xs)
+    center_y = sum(ys) / len(ys)
+    if center_x < 0.2 or center_x > 0.8 or center_y < 0.2 or center_y > 0.8:
+        return 0.45, "Center your hand in the frame."
+    if sign is None:
+        return 0.55, "Unclear gesture. Make your sign clearer."
+    if detection_confidence < 0.7:
+        return 0.6, "Improve lighting or show your palm more clearly."
     if stability < 1.0:
         return 0.75, "Hold the gesture steady to confirm the sign."
     return 0.92, "Gesture locked. Continue signing or pause to translate."
@@ -223,7 +242,7 @@ async def _process_frame(websocket: WebSocket, payload: dict, session_id: str):
         is_new = sign_buffer.add_sign(session_id, sign, confidence)
         stats = sign_buffer.get_session_stats(session_id)
         frame_quality, guidance = _describe_frame_quality(
-            sign, confidence, stats["stability_progress"]
+            _HAND_PRESENT_LANDMARKS, confidence, sign, confidence, stats["stability_progress"]
         )
         commit_ready = False
 

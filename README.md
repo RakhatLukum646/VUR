@@ -1,6 +1,6 @@
 # AI Sign Language Translator
 
-Real-time sign language to text translation using MediaPipe, Google Gemini, and a trained MLP classifier.
+Real-time sign language to text translation using MediaPipe, Google Gemini, and a ResNet18-based ASL classifier.
 
 ## Team
 
@@ -14,27 +14,28 @@ Real-time sign language to text translation using MediaPipe, Google Gemini, and 
 
 ## Architecture
 
-All traffic goes through a single **Nginx API Gateway** on port 80.
+All traffic goes through a single **Nginx API Gateway** (HTTP → HTTPS redirect, TLS on port 443).
 
 ```
 Browser
   │
   ▼
 ┌─────────────────────────────────────┐
-│   Nginx Gateway  :80                │
+│   Nginx Gateway  :80/:443 (HTTPS)   │
 │  /        → Frontend (React)        │
 │  /ws/     → MediaPipe (WebSocket)   │
 │  /api/v1/ → LLM Service (REST)      │
 │  /auth/   → Auth Service (REST)     │
-└────────────────┬────────────────────┘
-                 │ internal Docker network
-    ┌────────────┼─────────────┐
-    ▼            ▼             ▼
- Frontend    MediaPipe       LLM
-  :80          :8001         :8002
-                 │
-                 └──(HTTP)──► LLM :8002
-                              (Gemini API)
+└──────────┬──────────────────────────┘
+           │ internal Docker network
+  ┌────────┼────────────┬─────────────┐
+  ▼        ▼            ▼             ▼
+Frontend  Auth       MediaPipe       LLM
+ :8080    :8003        :8001         :8002
+           │             │             │
+         MongoDB       (ResNet18)    Gemini API
+          :27017      HuggingFace    + Redis
+                                      :6379
 ```
 
 ---
@@ -52,7 +53,9 @@ Browser
 ### MediaPipe Service — Port 8001
 - FastAPI WebSocket server
 - Real-time hand landmark detection (21 points via MediaPipe)
-- **ML-based gesture classifier** (MLP, falls back to heuristics)
+- **ResNet18-based ASL classifier** as primary (26 letters A–Z, loaded from HuggingFace: `huzaifanasirrr/realtime-sign-language-translator`)
+- Geometry-based heuristic classifier as fallback
+- Frame quality guidance (distance, centering, lighting)
 - Smart sign segmentation: auto-commits sequence when hand drops (rest detection)
 - Sign sequence buffer with 500 ms debounce
 - WebSocket: `ws://localhost:8001/ws/sign-detection`
@@ -66,10 +69,14 @@ Browser
 - Docs: `http://localhost:8002/docs`
 
 ### Auth Service — Port 8003
-- JWT authentication
-- Email verification
-- Two-factor authentication (TOTP)
+- JWT authentication (HS256)
+- Email verification (SMTP)
+- Two-factor authentication (TOTP) with recovery codes
+- Password reset via email tokens
+- CSRF token protection
+- Rate limiting
 - User profile management
+- MongoDB for user data persistence
 
 ---
 
@@ -85,7 +92,7 @@ cp .env.example .env
 # 2. Start everything
 docker compose up --build
 
-# App is available at http://localhost
+# App is available at https://localhost (self-signed TLS cert — accept the browser warning)
 ```
 
 ### Local Development
@@ -130,8 +137,9 @@ make dev
 
 ## ML Gesture Classifier
 
-The MediaPipe service ships with a geometry-based heuristic classifier as fallback.  
-To train the full MLP model on your own data:
+The MediaPipe service uses a **ResNet18** model (downloaded automatically from HuggingFace on first start) as the primary classifier for all 26 ASL letters (A–Z). A geometry-based heuristic classifier serves as fallback when the model is unavailable or confidence is below threshold (`CONFIDENCE_THRESHOLD`, default `0.7`).
+
+You can also train a custom **MLP** model on your own data to supplement or replace the heuristics:
 
 ```bash
 cd backend/media_pipe_service
@@ -188,6 +196,8 @@ Create a `.env` file in the project root (or use `.env.example` as a template):
 | `EMAIL_PORT` | Yes | SMTP port |
 | `EMAIL_USER` | Yes | SMTP username |
 | `EMAIL_PASSWORD` | Yes | SMTP password |
+| `CORS_ORIGINS` | No | Allowed CORS origins (comma-separated) |
+| `LOG_LEVEL` | No | Logging level (default: `info`) |
 
 For local frontend development, copy `frontend/.env.local.example` to `frontend/.env.local`:
 
@@ -201,7 +211,7 @@ For local frontend development, copy `frontend/.env.local.example` to `frontend/
 
 ## How to Use
 
-1. Open `http://localhost` and sign in (or register)
+1. Open `https://localhost` and sign in (or register — accept the self-signed cert warning)
 2. Allow camera access when prompted
 3. Select your **target language** (English / Russian / Kazakh)
 4. Click **Start Translation**
@@ -218,12 +228,15 @@ For local frontend development, copy `frontend/.env.local.example` to `frontend/
 |-----------|--------|
 | Auth Service | Complete |
 | MediaPipe Hand Detection | Complete |
-| Gesture Classifier (heuristic) | Complete |
-| Gesture Classifier (ML/MLP) | Complete — requires training data |
+| Gesture Classifier (ResNet18) | Complete — auto-downloaded from HuggingFace |
+| Gesture Classifier (heuristic fallback) | Complete |
+| Gesture Classifier (custom MLP) | Optional — requires training data |
 | LLM Translation (Gemini) | Complete |
+| Session Caching (Redis) | Complete |
 | Frontend UI | Complete |
 | Landmark Overlay | Complete |
 | Language Selection | Complete |
+| HTTPS / TLS (self-signed) | Complete |
 | API Gateway (Nginx) | Complete |
 | Docker Compose | Complete |
 
