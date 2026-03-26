@@ -1,357 +1,73 @@
-"""Gesture classification using hand landmarks.
+"""Gesture classifier — S3D temporal model only (RSL word recognition).
 
-Two-tier strategy
------------------
-1. ML model (MLPClassifier) — loaded from data/gesture_model.pkl when available.
-   Trained on 63-feature landmark vectors (21 × [x, y, z]).
-   Achieves higher accuracy on full ASL alphabet incl. ambiguous signs.
+Source: https://github.com/ai-forever/easy_sign
+Model:  S3D ONNX, 1598 Russian Sign Language classes
+Input:  sliding window of S3D_WINDOW_SIZE frames (224×224 RGB)
+Output: (rsl_word, confidence) or (None, 0.0)
 
-2. Heuristic fallback — geometry-based rules for ~15 common signs.
-   Used automatically when no trained model exists.
-
-To train the ML model:
-    cd backend/media_pipe_service
-    python scripts/record_training_data.py --label A --samples 200
-    # ... repeat for each sign ...
-    python scripts/train_classifier.py
-
-All landmarks are expected to be wrist-relative and unit-scaled
-(output of HandDetector.normalize_landmarks).
+Frame buffering is handled per-session in the WebSocket router;
+this class is stateless and safe to share across sessions.
 """
 
 import logging
 import time
 from typing import Optional, Tuple
 
-import numpy as np
-
 from app.config import settings
-from app.models.ml_classifier import MLClassifier
-from app.models.resnet_classifier import ResNetClassifier
+from app.models.s3d_classifier import S3DClassifier
 
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _dist(a: np.ndarray, b: np.ndarray) -> float:
-    return float(np.linalg.norm(a - b))
-
-
-def _angle_deg(a: np.ndarray, vertex: np.ndarray, b: np.ndarray) -> float:
-    """Angle at `vertex` formed by rays vertex→a and vertex→b (0–180°)."""
-    va = a - vertex
-    vb = b - vertex
-    na, nb = np.linalg.norm(va), np.linalg.norm(vb)
-    if na < 1e-6 or nb < 1e-6:
-        return 0.0
-    cos_angle = np.clip(np.dot(va, vb) / (na * nb), -1.0, 1.0)
-    return float(np.degrees(np.arccos(cos_angle)))
-
-
-# ---------------------------------------------------------------------------
-# GestureFeatures — all derived quantities computed once per frame
-# ---------------------------------------------------------------------------
-
-class GestureFeatures:
-    """Pre-computed geometric features from a normalized landmark array."""
-
-    def __init__(self, lm: np.ndarray):
-        # --- Landmark shortcuts ---
-        self.lm = lm
-        wrist      = lm[0]
-        thumb_cmc  = lm[1];  thumb_mcp = lm[2];  thumb_ip = lm[3];  thumb_tip = lm[4]
-        idx_mcp    = lm[5];  idx_pip   = lm[6];  idx_dip  = lm[7];  idx_tip   = lm[8]
-        mid_mcp    = lm[9];  mid_pip   = lm[10]; mid_dip  = lm[11]; mid_tip   = lm[12]
-        ring_mcp   = lm[13]; ring_pip  = lm[14]; ring_dip = lm[15]; ring_tip  = lm[16]
-        pink_mcp   = lm[17]; pink_pip  = lm[18]; pink_dip = lm[19]; pink_tip  = lm[20]
-
-        # --- 5-bit extension vector ---
-        # Thumb: extended when tip is clearly to the side of the IP joint
-        thumb_abduction = _dist(thumb_tip, pink_mcp) - _dist(thumb_ip, pink_mcp)
-        self.thumb_ext = bool(thumb_abduction > 0.0)
-
-        # Fingers: tip above PIP in normalized y (negative = up in image coords)
-        self.idx_ext  = bool(idx_tip[1]  < idx_pip[1])
-        self.mid_ext  = bool(mid_tip[1]  < mid_pip[1])
-        self.ring_ext = bool(ring_tip[1] < ring_pip[1])
-        self.pink_ext = bool(pink_tip[1] < pink_pip[1])
-
-        self.ext = [self.thumb_ext, self.idx_ext, self.mid_ext,
-                    self.ring_ext, self.pink_ext]
-
-        # --- Curl ratios (0 = fully curled, 1 = fully extended) ---
-        # Compare tip-to-wrist distance with MCP-to-wrist (rough max extension)
-        def curl(tip, mcp):
-            tip_d = _dist(tip, wrist)
-            mcp_d = _dist(mcp, wrist)
-            return float(np.clip(tip_d / (mcp_d * 2.2 + 1e-6), 0.0, 1.0))
-
-        self.thumb_curl = curl(thumb_tip, thumb_mcp)
-        self.idx_curl   = curl(idx_tip,   idx_mcp)
-        self.mid_curl   = curl(mid_tip,   mid_mcp)
-        self.ring_curl  = curl(ring_tip,  ring_mcp)
-        self.pink_curl  = curl(pink_tip,  pink_mcp)
-
-        # --- Thumb tuck: how close is the thumb tip to the index MCP? ---
-        # Small value → thumb is tucked across the palm (S, A, E …)
-        self.thumb_tuck_dist = _dist(thumb_tip, idx_mcp)
-
-        # --- Thumb abduction angle (wrist→thumb_cmc→thumb_tip) ---
-        self.thumb_angle = _angle_deg(wrist, thumb_cmc, thumb_tip)
-
-        # --- Index–middle spread (normalized x distance between tips) ---
-        self.idx_mid_spread = abs(float(idx_tip[0] - mid_tip[0]))
-
-        # --- Index height above wrist (positive = pointing up in normalized space) ---
-        # In wrist-relative coords, negative y = upward
-        self.idx_height = -float(idx_tip[1])   # positive when pointing up
-
-        # --- Middle-to-index tip distance (for 3 vs W) ---
-        self.mid_idx_tip_dist = _dist(mid_tip, idx_tip)
-
-        # --- Pinky–ring spread ---
-        self.pink_ring_spread = abs(float(pink_tip[0] - ring_tip[0]))
-
-        # --- Confidence: mean clarity of each finger's state ---
-        def clarity(tip_y, pip_y, expected_ext):
-            diff = pip_y - tip_y          # positive → extended
-            raw = float(np.clip(0.5 + diff / 0.20, 0.0, 1.0))
-            return raw if expected_ext else (1.0 - raw)
-
-        finger_claritys = [
-            clarity(idx_tip[1],  idx_pip[1],  self.idx_ext),
-            clarity(mid_tip[1],  mid_pip[1],  self.mid_ext),
-            clarity(ring_tip[1], ring_pip[1], self.ring_ext),
-            clarity(pink_tip[1], pink_pip[1], self.pink_ext),
-        ]
-        thumb_clarity = float(np.clip(abs(thumb_abduction) / 0.12, 0.0, 1.0))
-        if not self.thumb_ext:
-            thumb_clarity = 1.0 - thumb_clarity
-        finger_claritys.append(thumb_clarity)
-        self.confidence = 0.50 + float(np.mean(finger_claritys)) * 0.45
-
-
-# ---------------------------------------------------------------------------
-# GestureClassifier
-# ---------------------------------------------------------------------------
-
 class GestureClassifier:
-    """
-    Gesture classifier with ML-first, heuristic-fallback strategy.
-    Expects normalized (wrist-relative, unit-scaled) landmarks.
-    """
+    """Thin wrapper around S3DClassifier, shared across all WebSocket sessions."""
 
     def __init__(self):
-        self.confidence_threshold = settings.CONFIDENCE_THRESHOLD
         t0 = time.perf_counter()
 
-        # ResNet18 — primary classifier (image-based, 99.6% accuracy on ASL A-Z)
-        self._resnet = ResNetClassifier(
-            confidence_threshold=self.confidence_threshold,
-            device=settings.RESNET_DEVICE,
+        self._s3d = S3DClassifier(
+            model_path=settings.S3D_MODEL_PATH,
+            class_list_path=settings.S3D_CLASS_LIST_PATH,
+            window_size=settings.S3D_WINDOW_SIZE,
+            threshold=settings.S3D_THRESHOLD,
         )
-        if settings.USE_RESNET:
+
+        if settings.USE_S3D:
             try:
-                self._resnet.load(settings.RESNET_MODEL_PATH or None)
-                logger.info(
-                    "resnet_loaded classifier=ResNet18 confidence_threshold=%.2f",
-                    self.confidence_threshold,
-                )
+                self._s3d.load()
             except Exception as exc:
-                logger.warning(
-                    "resnet_load_failed error=%s — falling back to MLP/heuristic", exc
-                )
+                logger.warning("s3d_load_failed error=%s — S3D disabled", exc)
 
-        # MLP — secondary classifier (landmark-based)
-        self._ml = MLClassifier()
         elapsed_ms = (time.perf_counter() - t0) * 1000
-
-        if self._resnet.is_loaded:
+        if self._s3d.is_loaded:
             logger.info(
-                "classifier_ready primary=ResNet18 elapsed_ms=%.1f", elapsed_ms
-            )
-        elif self._ml.is_available:
-            logger.info(
-                "classifier_ready primary=MLP elapsed_ms=%.1f confidence_threshold=%.2f",
+                "classifier_ready model=S3D window=%d threshold=%.2f elapsed_ms=%.1f",
+                settings.S3D_WINDOW_SIZE,
+                settings.S3D_THRESHOLD,
                 elapsed_ms,
-                self.confidence_threshold,
             )
         else:
             logger.warning(
-                "classifier_ready primary=heuristic elapsed_ms=%.1f confidence_threshold=%.2f",
+                "classifier_ready model=none (S3D failed to load) elapsed_ms=%.1f",
                 elapsed_ms,
-                self.confidence_threshold,
             )
 
-    # ------------------------------------------------------------------
-    def classify_image(self, image: np.ndarray) -> Tuple[Optional[str], float]:
-        """ResNet-only classification directly from an image (no landmarks needed).
+    @property
+    def is_ready(self) -> bool:
+        return self._s3d.is_loaded
+
+    def classify(self, frames: list) -> Tuple[Optional[str], float]:
+        """Run S3D inference on a window of frames.
 
         Args:
-            image: RGB numpy array, any size — will be resized to 224×224 internally.
+            frames: List of S3D_WINDOW_SIZE RGB numpy arrays (any size —
+                    resized to 224×224 internally).
 
         Returns:
-            (sign, confidence) or (None, 0.0) if model not loaded or below threshold.
+            (rsl_word, confidence) or (None, 0.0) when model not loaded,
+            window not full, or prediction below threshold.
         """
-        if not self._resnet.is_loaded:
+        if not self._s3d.is_loaded:
             return None, 0.0
-        result = self._resnet.predict(image)
+        result = self._s3d.predict(frames)
         return result if result is not None else (None, 0.0)
-
-    # ------------------------------------------------------------------
-    def classify(
-        self,
-        landmarks: list,
-        image: Optional[np.ndarray] = None,
-    ) -> Tuple[Optional[str], float]:
-        """Classify gesture, trying classifiers in priority order.
-
-        Args:
-            landmarks: 21 wrist-relative unit-scaled landmark coordinates.
-            image: Optional RGB hand-crop array for the ResNet18 classifier.
-
-        Returns:
-            (sign, confidence) or (None, 0.0).
-        """
-        if not landmarks or len(landmarks) < 21:
-            return None, 0.0
-
-        # --- ResNet18 path (primary) ------------------------------------
-        if self._resnet.is_loaded and image is not None:
-            result = self._resnet.predict(image)
-            if result is not None:
-                return result
-
-        # --- MLP path (secondary) ---------------------------------------
-        if self._ml.is_available:
-            sign, conf = self._ml.classify(landmarks)
-            if sign and conf >= self.confidence_threshold:
-                return sign, conf
-            return None, 0.0
-
-        # --- Heuristic fallback ----------------------------------------
-        f = GestureFeatures(np.array(landmarks, dtype=float))
-        sign, conf = self._match(f)
-
-        if sign and conf >= self.confidence_threshold:
-            return sign, conf
-        return None, 0.0
-
-    # ------------------------------------------------------------------
-    def _match(self, f: GestureFeatures) -> Tuple[Optional[str], float]:
-        """
-        Dispatch on the 5-bit extension vector, then apply geometric
-        sub-tests to resolve ambiguous cases.
-        """
-        e = f.ext   # [thumb, idx, mid, ring, pink]
-        c = f.confidence
-
-        # ── 0 fingers extended ────────────────────────────────────────
-        if e == [False, False, False, False, False]:
-            # A: thumb along side of fist (not tucked across palm)
-            # S: thumb tucked OVER fingers (tip close to index MCP)
-            # O: all fingers curled but rounded (high curl ratio)
-            if f.thumb_tuck_dist < 0.25:
-                return "S", c
-            if f.thumb_ext:
-                return "A", c
-            # Round curl → O shape
-            avg_curl = (f.idx_curl + f.mid_curl + f.ring_curl + f.pink_curl) / 4
-            if avg_curl > 0.55:
-                return "O", c
-            return "A", c
-
-        # ── Thumb only ────────────────────────────────────────────────
-        if e == [True, False, False, False, False]:
-            return "A", c   # thumb up, fist = A variant
-
-        # ── Index only ────────────────────────────────────────────────
-        if e == [False, True, False, False, False]:
-            # 1: index pointing up moderately
-            # D: index pointing very high, other fingers curled into circle
-            # G: index pointing sideways (low height)
-            if f.idx_height > 1.2:
-                return "D", c
-            if f.idx_height > 0.4:
-                return "1", c
-            return "G", c
-
-        # ── Pinky only ────────────────────────────────────────────────
-        if e == [False, False, False, False, True]:
-            return "I", c
-
-        # ── Thumb + pinky ─────────────────────────────────────────────
-        if e == [True, False, False, False, True]:
-            return "Y", c
-
-        # ── Thumb + index ─────────────────────────────────────────────
-        if e == [True, True, False, False, False]:
-            # L: classic L-shape, index high and thumb spread
-            if f.idx_height > 0.5 and f.thumb_angle > 40:
-                return "L", c
-            return "L", c   # no other common sign shares this pattern
-
-        # ── Index + middle ────────────────────────────────────────────
-        if e == [False, True, True, False, False]:
-            # 2: both up, fingers visibly apart (spread > threshold)
-            # V: peace sign — fingers spread, wider than 2
-            # U: fingers together, parallel
-            if f.idx_mid_spread > 0.22:
-                return "V", c
-            if f.idx_mid_spread > 0.10:
-                return "2", c
-            return "U", c
-
-        # ── Middle + pinky (ILY variant) ──────────────────────────────
-        if e == [False, False, True, False, True]:
-            return "ILY", c
-
-        # ── Index + middle + ring ─────────────────────────────────────
-        if e == [False, True, True, True, False]:
-            # 3: three up; W has ring finger spread farther out
-            # W: thumb also partially extended or ring is very spread
-            if f.thumb_curl > 0.5 and f.pink_ring_spread < 0.15:
-                return "3", c
-            return "W", c
-
-        # ── Index + ring + pinky ──────────────────────────────────────
-        if e == [False, True, False, True, True]:
-            return "W", c
-
-        # ── All four fingers (no thumb) ───────────────────────────────
-        if e == [False, True, True, True, True]:
-            # B: thumb tucked, all 4 fingers straight up together
-            # 4: thumb is spread out to the side
-            if f.thumb_tuck_dist < 0.35:
-                return "B", c
-            return "4", c
-
-        # ── Thumb + middle + ring + pinky (index curled) ──────────────
-        if e == [True, False, True, True, True]:
-            return "4", c   # ASL 4 variant with thumb out
-
-        # ── All five fingers ──────────────────────────────────────────
-        if e == [True, True, True, True, True]:
-            # 5: open hand, fingers spread
-            # B-open / flat-B: fingers together, thumb alongside
-            if f.idx_mid_spread > 0.12 or f.thumb_angle > 35:
-                return "5", c
-            return "B", c
-
-        # ── Thumb + index + middle ────────────────────────────────────
-        if e == [True, True, True, False, False]:
-            return "K", c
-
-        # ── Thumb + index + middle + ring ─────────────────────────────
-        if e == [True, True, True, True, False]:
-            # Approximation for H / 4-open
-            return "H", c
-
-        # ── Thumb + index + pinky ─────────────────────────────────────
-        if e == [True, True, False, False, True]:
-            return "ILY", c  # I Love You
-
-        return None, 0.0

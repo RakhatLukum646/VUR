@@ -26,10 +26,12 @@ class Settings(BaseSettings):
     SIGN_BUFFER_TIMEOUT_MS: int = 1500  # Time before committing sign sequence
     MIN_SEQUENCE_LENGTH: int = 2
 
-    # ResNet18 classifier settings
-    USE_RESNET: bool = True
-    RESNET_MODEL_PATH: str = ""  # Empty → auto-download from HuggingFace
-    RESNET_DEVICE: str = "cpu"
+    # S3D classifier settings (ai-forever/easy_sign — RSL word recognition)
+    USE_S3D: bool = True
+    S3D_MODEL_PATH: str = ""  # Empty → auto-download from GitHub
+    S3D_CLASS_LIST_PATH: str = ""  # Empty → auto-download from GitHub
+    S3D_WINDOW_SIZE: int = 32  # Frames per inference window
+    S3D_THRESHOLD: float = 0.5  # Minimum confidence to emit a prediction
 
     model_config = SettingsConfigDict(env_file=".env")
 

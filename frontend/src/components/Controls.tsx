@@ -119,7 +119,7 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
       <div className="mt-4 pt-4 border-t border-gray-100">
         <p className="text-xs text-gray-500">
           <span className="font-medium">Tip:</span> Position your hand clearly in front of the camera. 
-          The system recognizes ASL signs (A-Z, 0-9). Pause between words for better recognition.
+          The system recognizes Russian Sign Language (RSL) gestures. Hold each sign for ~1 second, then pause between words.
         </p>
       </div>
     </div>

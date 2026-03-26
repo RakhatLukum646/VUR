@@ -228,7 +228,7 @@ function App() {
                   AI Sign Language Translator
                 </h1>
                 <p className="text-sm text-gray-500">
-                  Real-time sign language to text translation
+                  Real-time RSL (Russian Sign Language) translation
                 </p>
               </div>
             </div>
@@ -336,8 +336,7 @@ function App() {
             <li className="flex items-start gap-2">
               <span className="font-bold">4.</span>
               <span>
-                Hold each sign briefly until the app marks it as stable, then pause
-                between words
+                Perform RSL gestures — the model captures 32 frames (~1 second) per word, then recognises it automatically
               </span>
             </li>
             <li className="flex items-start gap-2">

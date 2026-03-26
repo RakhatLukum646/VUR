@@ -16,7 +16,7 @@ async def health_check():
         "service": "media_pipe",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "1.0.0",
-        "model_loaded": gesture_classifier._ml.is_available,
+        "model_loaded": gesture_classifier.is_ready,
     }
 
 

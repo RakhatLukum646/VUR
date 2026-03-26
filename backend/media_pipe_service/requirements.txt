@@ -10,10 +10,8 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.0
 httpx==0.26.0
 python-jose==3.3.0
-scikit-learn==1.4.0
 prometheus-fastapi-instrumentator>=7.0
-# ResNet18 ASL classifier (CPU-only torch installed via Dockerfile)
-huggingface_hub>=0.20.0
-Pillow>=10.0.0
+# S3D RSL classifier (ai-forever/easy_sign)
+onnxruntime>=1.17.0
 pytest==7.4.4
 pytest-asyncio==0.21.1
