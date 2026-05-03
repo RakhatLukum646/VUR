@@ -181,8 +181,9 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
             </h3>
             {isSupported && currentSentence && (
               <button
+                type="button"
                 onClick={() => handleSpeak(currentSentence)}
-                title={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+                title={isSpeaking ? 'Stop' : 'Text to speech'}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   isSpeaking
                     ? 'bg-red-100 text-red-600 hover:bg-red-200'
@@ -197,7 +198,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                 ) : (
                   <>
                     <Volume2 className="w-3.5 h-3.5" />
-                    Read aloud
+                    Text to speech
                   </>
                 )}
               </button>
@@ -236,8 +237,10 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                   </div>
                   {isSupported && (
                     <button
+                      type="button"
                       onClick={() => speak(item.translation, language)}
-                      title="Read aloud"
+                      title="Text to speech"
+                      aria-label="Text to speech"
                       className="mt-0.5 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0"
                     >
                       <Volume2 className="w-3.5 h-3.5" />
