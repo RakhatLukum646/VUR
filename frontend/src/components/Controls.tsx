@@ -89,9 +89,11 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
             <Globe className="w-4 h-4 text-indigo-500" />
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value as typeof language)}
-              disabled={isTranslating}
-              className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              onChange={(e) => {
+                const next = LANGUAGE_OPTIONS.find((opt) => opt.value === e.target.value);
+                if (next) setLanguage(next.value);
+              }}
+              className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             >
               {LANGUAGE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

@@ -10,6 +10,7 @@ import {
   setup2FA,
   updateProfileName,
 } from '../services/authApi';
+import { AppHeader } from '../components/AppHeader';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -160,8 +161,16 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader
+        userName={user?.name}
+        onLogout={() => {
+          logout();
+          navigate('/login', { replace: true });
+        }}
+      />
+
+      <div className="max-w-3xl mx-auto space-y-6 px-4 py-8">
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Profile</h1>
 

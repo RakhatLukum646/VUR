@@ -161,11 +161,12 @@ export function useWebSocket(): UseWebSocketReturn {
         payload: {
           action,
           session_id: sessionId,
+          ...(action === 'start' ? { language } : {}),
         },
       };
       wsRef.current.send(JSON.stringify(message));
     }
-  }, [sessionId]);
+  }, [language, sessionId]);
 
   const clearDetection = useCallback(() => {
     setLastSign(null);

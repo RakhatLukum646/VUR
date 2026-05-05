@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Activity,
   Eye,
@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { useSpeech } from '../hooks/useSpeech';
 import { useAppStore } from '../store/useAppStore';
+import { LANGUAGE_OPTIONS } from '../types';
+import { translateSigns } from '../services/api';
 
 interface TranslationPanelProps {
   lastSign: string | null;
@@ -38,6 +40,27 @@ function getConfidenceExplanation(confidence: number, handDetected: boolean) {
   return 'Low confidence. Adjust framing, lighting, or hand shape.';
 }
 
+type TextToken = {
+  text: string;
+  start: number;
+  end: number;
+};
+
+function tokenizeWithOffsets(text: string): TextToken[] {
+  const tokens: TextToken[] = [];
+  const re = /\S+\s*/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    const raw = match[0];
+    const start = match.index;
+    const end = start + raw.length;
+    tokens.push({ text: raw, start, end });
+  }
+
+  return tokens;
+}
+
 export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   lastSign,
   confidence,
@@ -47,22 +70,77 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   sequenceLength,
   handDetected,
 }) => {
-  const { currentSentence, detectedSigns, language, translationHistory } =
+  const { currentSentence, detectedSigns, language, sessionId, setLanguage, setCurrentSentence, addToHistory, translationHistory } =
     useAppStore();
-  const { isSpeaking, isSupported, speak, stop } = useSpeech();
+  const {
+    isSpeaking,
+    isPaused,
+    isSupported,
+    speak,
+    stop,
+    pause,
+    resume,
+    activeBoundary,
+    speakingText,
+    voices,
+    selectedVoiceURI,
+    setSelectedVoiceURI,
+    activeVoice,
+  } = useSpeech();
+  const [activeTextKey, setActiveTextKey] = useState<'current' | number | null>(null);
+  const [retranslating, setRetranslating] = useState(false);
 
-  const signsDisplay = detectedSigns.slice(-20).join(' ');
+  const signsDisplay = useMemo(() => {
+    const last = translationHistory[translationHistory.length - 1];
+    return last ? last.signs.slice(-20).join(' ') : '';
+  }, [translationHistory]);
   const recentHistory = translationHistory.slice(-5).reverse();
   const confidenceExplanation = getConfidenceExplanation(
     confidence,
     handDetected
   );
 
-  const handleSpeak = (text: string) => {
-    if (isSpeaking) {
+  const highlightRange = useMemo(() => {
+    if (!isSpeaking) return null;
+    if (!activeBoundary) return null;
+    if (!speakingText) return null;
+
+    const start = activeBoundary.charIndex;
+    const length =
+      activeBoundary.charLength > 0 ? activeBoundary.charLength : 1;
+    return { start, end: start + length };
+  }, [activeBoundary, isSpeaking, speakingText]);
+
+  const currentSentenceTokens = useMemo(
+    () => tokenizeWithOffsets(currentSentence),
+    [currentSentence]
+  );
+
+  const handleSpeakCurrent = () => {
+    if (!currentSentence) return;
+    if (isSpeaking && activeTextKey === 'current') {
       stop();
-    } else {
-      speak(text, language);
+      setActiveTextKey(null);
+      return;
+    }
+    setActiveTextKey('current');
+    speak(currentSentence, language);
+  };
+
+  const handleRetranslate = async () => {
+    const last = translationHistory[translationHistory.length - 1];
+    if (!last) return;
+    setRetranslating(true);
+    try {
+      const result = await translateSigns(last.signs, sessionId, undefined, language);
+      setCurrentSentence(result.translation);
+      addToHistory({
+        signs: last.signs,
+        translation: result.translation,
+        timestamp: Date.now(),
+      });
+    } finally {
+      setRetranslating(false);
     }
   };
 
@@ -180,32 +258,115 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               Translated Sentence
             </h3>
             {isSupported && currentSentence && (
-              <button
-                onClick={() => handleSpeak(currentSentence)}
-                title={isSpeaking ? 'Stop speaking' : 'Read aloud'}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  isSpeaking
-                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                    : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                }`}
-              >
-                {isSpeaking ? (
-                  <>
-                    <VolumeX className="w-3.5 h-3.5" />
-                    Stop
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="w-3.5 h-3.5" />
-                    Read aloud
-                  </>
+              <div className="flex items-center gap-2">
+                <select
+                  value={language}
+                  onChange={(e) => {
+                    const next = LANGUAGE_OPTIONS.find((opt) => opt.value === e.target.value);
+                    if (next) setLanguage(next.value);
+                  }}
+                  title="Language"
+                  className="px-2 py-1 rounded-full text-xs bg-white border border-gray-200 text-gray-700"
+                >
+                  {LANGUAGE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.flag} {opt.label}
+                    </option>
+                  ))}
+                </select>
+                {voices.length > 0 && (
+                  <select
+                    value={selectedVoiceURI ?? ''}
+                    onChange={(e) =>
+                      setSelectedVoiceURI(e.target.value ? e.target.value : null)
+                    }
+                    title="Voice"
+                    className="max-w-[220px] px-2 py-1 rounded-full text-xs bg-white border border-gray-200 text-gray-700"
+                  >
+                    <option value="">Auto voice</option>
+                    {voices.map((v) => (
+                      <option key={v.voiceURI} value={v.voiceURI}>
+                        {v.name} ({v.lang})
+                      </option>
+                    ))}
+                  </select>
                 )}
-              </button>
+                {activeVoice && (
+                  <span className="hidden lg:inline text-xs text-gray-500">
+                    Reading: {activeVoice.name} ({activeVoice.lang})
+                  </span>
+                )}
+                {translationHistory.length > 0 && (
+                  <button
+                    onClick={handleRetranslate}
+                    disabled={retranslating}
+                    title="Re-translate last phrase with current language"
+                    className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-60 transition-colors"
+                  >
+                    {retranslating ? 'Translating…' : 'Re-translate'}
+                  </button>
+                )}
+                {isSpeaking && activeTextKey === 'current' && (
+                  <button
+                    onClick={() => (isPaused ? resume() : pause())}
+                    title={isPaused ? 'Resume' : 'Pause'}
+                    className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    {isPaused ? 'Resume' : 'Pause'}
+                  </button>
+                )}
+                <button
+                  onClick={handleSpeakCurrent}
+                  title={
+                    isSpeaking && activeTextKey === 'current'
+                      ? 'Stop speaking'
+                      : 'Read aloud'
+                  }
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    isSpeaking && activeTextKey === 'current'
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                      : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                  }`}
+                >
+                  {isSpeaking && activeTextKey === 'current' ? (
+                    <>
+                      <VolumeX className="w-3.5 h-3.5" />
+                      Stop
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-3.5 h-3.5" />
+                      Read aloud
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 min-h-[80px]">
             {currentSentence ? (
-              <p className="text-lg text-gray-800">{currentSentence}</p>
+              <p className="text-lg text-gray-800">
+                {currentSentenceTokens.map((t, idx) => {
+                  const shouldHighlight =
+                    activeTextKey === 'current' &&
+                    highlightRange !== null &&
+                    t.start < highlightRange.end &&
+                    t.end > highlightRange.start;
+
+                  return (
+                    <span
+                      key={`${idx}-${t.start}`}
+                      className={
+                        shouldHighlight
+                          ? 'bg-yellow-200 rounded-sm'
+                          : undefined
+                      }
+                    >
+                      {t.text}
+                    </span>
+                  );
+                })}
+              </p>
             ) : (
               <p className="text-gray-400 italic">
                 Translation will appear here when you complete a sign sequence...
@@ -236,7 +397,10 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                   </div>
                   {isSupported && (
                     <button
-                      onClick={() => speak(item.translation, language)}
+                      onClick={() => {
+                        setActiveTextKey(index);
+                        speak(item.translation, language);
+                      }}
                       title="Read aloud"
                       className="mt-0.5 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0"
                     >
