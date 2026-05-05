@@ -1,146 +1,244 @@
-"""Tests for gesture classifier and GestureFeatures.
+"""Tests for the S3D-based GestureClassifier wrapper.
 
-The GestureClassifier uses a two-tier strategy:
-  1. MLClassifier (sklearn MLP) when a trained model is present.
-  2. Heuristic via GestureFeatures when no model is found.
+After the easy_sign (S3D) migration, `GestureClassifier` is a thin,
+stateless wrapper around `S3DClassifier`.  It exposes `is_ready` and a
+`classify(frames)` method that expects a window of RGB numpy frames.
 
-These tests exercise the public classify() interface and GestureFeatures
-directly (replacing the old, now-removed _get_extended_fingers and
-_normalize_landmarks helpers).
+These tests never touch the real ONNX model — we install the gesture
+classifier with `USE_S3D=false` in `conftest.py`, which leaves the
+underlying session unloaded, and then exercise the public contract.
+For the "loaded" code paths we inject a fake `session_run` so no model
+download or onnxruntime import is required.
 """
 
-import pytest
 import numpy as np
-from app.models.gesture_classifier import GestureClassifier, GestureFeatures
+import pytest
+
+from app.models.gesture_classifier import GestureClassifier
+from app.models.s3d_classifier import S3DClassifier
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# GestureClassifier — public contract when the S3D model is not loaded
 # ---------------------------------------------------------------------------
 
-def _make_landmarks(wrist, tips, pips, default=(0.5, 0.5, 0)):
-    """Build a 21-point landmark list with controlled tip/PIP positions.
-
-    wrist  : (x, y, z) for landmark 0
-    tips   : dict {landmark_index: (x, y, z)} for finger tips [8,12,16,20]
-    pips   : dict {landmark_index: (x, y, z)} for PIP joints [6,10,14,18]
-    All remaining landmarks use `default`.
-    """
-    overrides = {0: wrist, **tips, **pips}
-    return [list(overrides.get(i, default)) for i in range(21)]
-
-
-# ---------------------------------------------------------------------------
-# GestureClassifier public interface
-# ---------------------------------------------------------------------------
-
-class TestGestureClassifier:
-
+class TestGestureClassifierUnloaded:
     def setup_method(self):
-        self.classifier = GestureClassifier()
+        self.clf = GestureClassifier()
 
-    def test_empty_landmarks(self):
-        sign, confidence = self.classifier.classify([])
+    def test_is_ready_false_when_s3d_not_loaded(self):
+        assert self.clf.is_ready is False
+
+    def test_classify_returns_tuple(self):
+        result = self.clf.classify([])
+        assert isinstance(result, tuple) and len(result) == 2
+
+    def test_classify_empty_frames_returns_none_and_zero(self):
+        sign, confidence = self.clf.classify([])
         assert sign is None
         assert confidence == 0.0
 
-    def test_insufficient_landmarks(self):
-        sign, confidence = self.classifier.classify([[0, 0, 0]] * 10)
+    def test_classify_insufficient_frames_returns_none(self):
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(2)]
+        sign, confidence = self.clf.classify(frames)
         assert sign is None
         assert confidence == 0.0
 
-    def test_valid_landmarks_returns_float_confidence(self):
-        """21 valid landmarks always produce a float confidence in [0, 1]."""
-        landmarks = [[0.0, 0.0, 0.0]] * 21
-        _sign, confidence = self.classifier.classify(landmarks)
+    def test_classify_confidence_always_float(self):
+        sign, confidence = self.clf.classify([])
         assert isinstance(confidence, float)
         assert 0.0 <= confidence <= 1.0
 
-    def test_random_landmarks_confidence_in_range(self):
-        """Random 21×3 landmarks should never raise and confidence is bounded."""
-        rng = np.random.default_rng(42)
-        for _ in range(20):
-            lm = rng.uniform(0, 1, (21, 3)).tolist()
-            _sign, conf = self.classifier.classify(lm)
-            assert 0.0 <= conf <= 1.0
-
-    def test_classify_returns_str_or_none_for_sign(self):
-        """The sign field must be a str or None."""
-        lm = [[float(i) * 0.01, float(i) * 0.02, 0.0] for i in range(21)]
-        sign, _conf = self.classifier.classify(lm)
+    def test_classify_sign_is_str_or_none(self):
+        sign, _ = self.clf.classify([])
         assert sign is None or isinstance(sign, str)
 
 
 # ---------------------------------------------------------------------------
-# GestureFeatures — extension detection
+# GestureClassifier — delegates to S3DClassifier when "loaded"
 # ---------------------------------------------------------------------------
 
-class TestGestureFeatures:
+class TestGestureClassifierLoaded:
+    """With a fake ONNX session, the wrapper should forward the top prediction."""
 
-    def test_closed_fist_fingers_not_extended(self):
-        """Tips below their PIP joints → all fingers curled."""
-        # tips at y=0.6 (lower in screen), PIPs at y=0.4 (higher → smaller y)
-        # In the classifier, idx_ext = tip[1] < pip[1], i.e. tip y must be
-        # smaller (higher on screen) than pip y to be extended.
-        # Here tip y (0.6) > pip y (0.4) → NOT extended.
-        lm = _make_landmarks(
-            wrist=(0.5, 0.5, 0),
-            tips={8: (0.5, 0.6, 0), 12: (0.5, 0.6, 0), 16: (0.5, 0.6, 0), 20: (0.5, 0.6, 0)},
-            pips={6: (0.5, 0.4, 0), 10: (0.5, 0.4, 0), 14: (0.5, 0.4, 0), 18: (0.5, 0.4, 0)},
+    def _install_fake_session(self, clf: GestureClassifier, logits: np.ndarray,
+                              labels: dict[int, str]) -> None:
+        """Swap the underlying S3D session for a deterministic fake."""
+        s3d = clf._s3d
+        s3d._input_name = "input"
+        s3d._output_name = "output"
+        s3d._labels = labels
+        s3d._session_run = lambda outputs, inputs: [logits]
+
+    def test_classify_returns_top_label_when_confidence_above_threshold(self):
+        clf = GestureClassifier()
+        # 3 classes; "hello" wins by a large margin.
+        logits = np.array([[0.1, 5.0, 0.2]], dtype=np.float32)
+        self._install_fake_session(clf, logits, {0: "no", 1: "hello", 2: "world"})
+
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8)
+                  for _ in range(clf._s3d.window_size)]
+        sign, confidence = clf.classify(frames)
+
+        assert sign == "hello"
+        assert 0.0 < confidence <= 1.0
+
+    def test_classify_skips_no_gesture_class(self):
+        """The special "no" class must never be returned to the caller."""
+        clf = GestureClassifier()
+        logits = np.array([[10.0, 0.1, 0.1]], dtype=np.float32)  # "no" wins
+        self._install_fake_session(clf, logits, {0: "no", 1: "hi", 2: "bye"})
+
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8)
+                  for _ in range(clf._s3d.window_size)]
+        sign, confidence = clf.classify(frames)
+
+        assert sign is None
+        assert confidence == 0.0
+
+    def test_classify_below_threshold_returns_none(self):
+        """Uniform logits → max prob ≈ 1/N → below default threshold → None."""
+        clf = GestureClassifier()
+        clf._s3d.threshold = 0.99
+        logits = np.zeros((1, 4), dtype=np.float32)
+        self._install_fake_session(clf, logits, {i: f"c{i}" for i in range(4)})
+
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8)
+                  for _ in range(clf._s3d.window_size)]
+        sign, confidence = clf.classify(frames)
+
+        assert sign is None
+        assert confidence == 0.0
+
+    def test_classify_resizes_non_224_frames(self):
+        """Frames of arbitrary size must be accepted (internally resized)."""
+        clf = GestureClassifier()
+        logits = np.array([[0.1, 5.0]], dtype=np.float32)
+        self._install_fake_session(clf, logits, {0: "no", 1: "ok"})
+
+        frames = [np.zeros((480, 640, 3), dtype=np.uint8)
+                  for _ in range(clf._s3d.window_size)]
+        sign, confidence = clf.classify(frames)
+
+        assert sign == "ok"
+        assert 0.0 < confidence <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# S3DClassifier — internal helpers
+# ---------------------------------------------------------------------------
+
+class TestS3DHelpers:
+    """Directly exercise the pure-numpy helpers on S3DClassifier."""
+
+    def test_preprocess_shape_is_1_C_T_H_W(self):
+        clf = S3DClassifier(window_size=4)
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(4)]
+        clip = clf._preprocess(frames)
+        assert clip.shape == (1, 3, 4, 224, 224)
+        assert clip.dtype == np.float32
+
+    def test_preprocess_normalises_to_unit_range(self):
+        clf = S3DClassifier(window_size=2)
+        frames = [np.full((224, 224, 3), 255, dtype=np.uint8) for _ in range(2)]
+        clip = clf._preprocess(frames)
+        assert clip.max() == pytest.approx(1.0)
+        assert clip.min() == pytest.approx(1.0)
+
+    def test_preprocess_resizes_large_frames(self):
+        clf = S3DClassifier(window_size=2)
+        frames = [np.zeros((1080, 1920, 3), dtype=np.uint8) for _ in range(2)]
+        clip = clf._preprocess(frames)
+        assert clip.shape == (1, 3, 2, 224, 224)
+
+    def test_softmax_rows_sum_to_one(self):
+        clf = S3DClassifier()
+        x = np.array([[1.0, 2.0, 3.0], [0.0, 0.0, 0.0]])
+        probs = clf._softmax(x)
+        assert probs.shape == x.shape
+        np.testing.assert_allclose(probs.sum(axis=1), [1.0, 1.0])
+
+    def test_softmax_preserves_argmax(self):
+        clf = S3DClassifier()
+        x = np.array([[0.1, 5.0, 0.2, 1.0]])
+        probs = clf._softmax(x)
+        assert int(np.argmax(probs)) == 1
+
+    def test_is_loaded_false_by_default(self):
+        clf = S3DClassifier()
+        assert clf.is_loaded is False
+
+    def test_predict_returns_none_when_not_loaded(self):
+        clf = S3DClassifier(window_size=2)
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(2)]
+        assert clf.predict(frames) is None
+
+    def test_predict_returns_none_when_window_not_full(self):
+        clf = S3DClassifier(window_size=8)
+        clf._session_run = lambda outputs, inputs: [
+            np.array([[10.0, 0.0]], dtype=np.float32)
+        ]
+        clf._input_name = "in"
+        clf._output_name = "out"
+        clf._labels = {0: "a", 1: "b"}
+
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(3)]
+        assert clf.predict(frames) is None
+
+    def test_predict_catches_inference_errors(self):
+        """Any exception inside the session should degrade to None, not crash."""
+        clf = S3DClassifier(window_size=2)
+        def _boom(outputs, inputs):
+            raise RuntimeError("onnx exploded")
+        clf._session_run = _boom
+        clf._input_name = "in"
+        clf._output_name = "out"
+        clf._labels = {0: "a"}
+
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(2)]
+        assert clf.predict(frames) is None
+
+    def test_predict_falls_back_to_class_n_when_label_missing(self):
+        """If the argmax index has no label, a generic name is returned."""
+        clf = S3DClassifier(window_size=2, threshold=0.0)
+        logits = np.array([[0.1, 8.0]], dtype=np.float32)
+        clf._session_run = lambda outputs, inputs: [logits]
+        clf._input_name = "in"
+        clf._output_name = "out"
+        clf._labels = {}  # no labels loaded
+
+        frames = [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(2)]
+        result = clf.predict(frames)
+        assert result is not None
+        label, _ = result
+        assert label == "class_1"
+
+
+# ---------------------------------------------------------------------------
+# S3DClassifier — label loading from a tab-separated file
+# ---------------------------------------------------------------------------
+
+class TestS3DLabelLoading:
+    def test_loads_tab_separated_labels(self, tmp_path):
+        path = tmp_path / "classes.txt"
+        path.write_text("0\tno\n1\thello\n2\tworld\n", encoding="utf-8")
+
+        clf = S3DClassifier(class_list_path=str(path))
+        clf._load_labels()
+
+        assert clf._labels == {0: "no", 1: "hello", 2: "world"}
+
+    def test_skips_malformed_lines(self, tmp_path):
+        path = tmp_path / "classes.txt"
+        path.write_text(
+            "0\tok\n"
+            "not-an-int\tbad\n"   # invalid index → skipped
+            "no-tab-here\n"        # no tab → skipped
+            "3\tthree\n",
+            encoding="utf-8",
         )
-        f = GestureFeatures(np.array(lm, dtype=float))
-        assert f.idx_ext is False
-        assert f.mid_ext is False
-        assert f.ring_ext is False
-        assert f.pink_ext is False
 
-    def test_open_hand_all_fingers_extended(self):
-        """Tips above their PIP joints → all fingers extended."""
-        # tips at y=0.2 (higher on screen), PIPs at y=0.4
-        lm = _make_landmarks(
-            wrist=(0.5, 0.8, 0),
-            tips={8: (0.5, 0.2, 0), 12: (0.5, 0.2, 0), 16: (0.5, 0.2, 0), 20: (0.5, 0.2, 0)},
-            pips={6: (0.5, 0.4, 0), 10: (0.5, 0.4, 0), 14: (0.5, 0.4, 0), 18: (0.5, 0.4, 0)},
-        )
-        f = GestureFeatures(np.array(lm, dtype=float))
-        assert f.idx_ext is True
-        assert f.mid_ext is True
-        assert f.ring_ext is True
-        assert f.pink_ext is True
+        clf = S3DClassifier(class_list_path=str(path))
+        clf._load_labels()
 
-    def test_extension_vector_length(self):
-        """ext vector always has exactly 5 elements."""
-        lm = [[0.0] * 3] * 21
-        f = GestureFeatures(np.array(lm, dtype=float))
-        assert len(f.ext) == 5
-
-    def test_confidence_is_in_range(self):
-        """Confidence must be in [0, 1] for any input."""
-        rng = np.random.default_rng(7)
-        for _ in range(30):
-            lm = rng.uniform(0.0, 1.0, (21, 3))
-            f = GestureFeatures(lm)
-            assert 0.0 <= f.confidence <= 1.0, f"confidence out of range: {f.confidence}"
-
-    def test_curl_ratios_in_range(self):
-        """All curl ratios must be clamped to [0, 1]."""
-        rng = np.random.default_rng(13)
-        for _ in range(20):
-            lm = rng.uniform(0.0, 1.0, (21, 3))
-            f = GestureFeatures(lm)
-            for attr in ("thumb_curl", "idx_curl", "mid_curl", "ring_curl", "pink_curl"):
-                val = getattr(f, attr)
-                assert 0.0 <= val <= 1.0, f"{attr} out of range: {val}"
-
-
-class TestMLClassifier:
-    def test_returns_none_when_model_unavailable(self):
-        """MLClassifier.classify() short-circuits to (None, 0.0) when no
-        trained model file is present (the normal state in CI)."""
-        from app.models.ml_classifier import MLClassifier
-
-        clf = MLClassifier()
-        assert not clf.is_available
-        label, conf = clf.classify([[0.0, 0.0, 0.0]] * 21)
-        assert label is None
-        assert conf == 0.0
+        assert clf._labels == {0: "ok", 3: "three"}
