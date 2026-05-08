@@ -1,4 +1,4 @@
-# Setup Guide — Signzhan
+# Setup Guide — SignZhan
 
 ## Prerequisites
 
@@ -154,7 +154,7 @@ DEBUG=true
 ## Project Structure
 
 ```
-Signzhan/   # after `git clone` the directory is often still named `VUR`
+SignZhan/   # after `git clone` the directory is often still named `VUR`
 ├── .env                            # Gemini key (for docker-compose)
 ├── .env.example
 ├── docker-compose.yml

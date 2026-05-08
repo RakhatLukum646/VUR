@@ -1,4 +1,4 @@
-# Signzhan Improvement Plan
+# SignZhan Improvement Plan
 > Senior SWE Review — 2026-03-18
 > Overall Rating: **7.2 / 10**
 

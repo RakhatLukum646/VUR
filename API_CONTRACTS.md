@@ -1,4 +1,4 @@
-# API Contracts — Signzhan
+# API Contracts — SignZhan
 
 ## Overview
 This document defines all API contracts between services.

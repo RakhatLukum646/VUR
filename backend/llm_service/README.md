@@ -1,6 +1,8 @@
-# Signzhan — LLM Service
+# SignZhan — LLM Service
 
-Natural language translation for the Signzhan sign-language pipeline.
+Natural-language translation service for the SignZhan pipeline.
+
+For full system architecture and how components fit together, see the root `README.md`.
 
 ## Features
 

@@ -33,7 +33,14 @@ export function useWebSocket(): UseWebSocketReturn {
       setError(null);
       setConnectionStatus('connecting');
 
-      const tokenParam = accessToken ? `?token=${encodeURIComponent(accessToken)}` : '';
+      if (!accessToken) {
+        setError('Please log in again (missing access token).');
+        setConnected(false);
+        setConnectionStatus('disconnected');
+        return;
+      }
+
+      const tokenParam = `?token=${encodeURIComponent(accessToken)}`;
       const ws = new WebSocket(`${WS_BASE}${WS_PATH}${tokenParam}`);
       
       ws.onopen = () => {
@@ -91,8 +98,12 @@ export function useWebSocket(): UseWebSocketReturn {
         setConnectionStatus('error');
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      ws.onclose = (event: CloseEvent) => {
+        console.log('WebSocket disconnected', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        });
         setConnected(false);
         setConnectionStatus('disconnected');
         wsRef.current = null;
