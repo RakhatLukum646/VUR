@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Activity,
+  ChevronDown,
   Eye,
   Gauge,
   History,
@@ -88,6 +89,41 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   } = useSpeech();
   const [activeTextKey, setActiveTextKey] = useState<'current' | number | null>(null);
   const [retranslating, setRetranslating] = useState(false);
+  const [showAllVoices, setShowAllVoices] = useState(false);
+
+  const visibleVoices = useMemo(() => {
+    const lang = (language || 'ru').toLowerCase();
+    const prefix =
+      lang === 'kz'
+        ? 'kk'
+        : lang === 'en'
+          ? 'en'
+          : 'ru';
+
+    const matchesPrefix = voices.filter((v) =>
+      v.lang.toLowerCase().startsWith(`${prefix}-`) || v.lang.toLowerCase() === prefix
+    );
+
+    const candidates = matchesPrefix.length > 0 ? matchesPrefix : voices;
+    const max = showAllVoices ? candidates.length : 8;
+    return candidates.slice(0, max);
+  }, [language, showAllVoices, voices]);
+
+  const canExpandVoices = useMemo(() => {
+    const lang = (language || 'ru').toLowerCase();
+    const prefix =
+      lang === 'kz'
+        ? 'kk'
+        : lang === 'en'
+          ? 'en'
+          : 'ru';
+
+    const matchesPrefix = voices.filter((v) =>
+      v.lang.toLowerCase().startsWith(`${prefix}-`) || v.lang.toLowerCase() === prefix
+    );
+    const candidates = matchesPrefix.length > 0 ? matchesPrefix : voices;
+    return candidates.length > 8;
+  }, [language, voices]);
 
   const signsDisplay = useMemo(() => {
     const last = translationHistory[translationHistory.length - 1];
@@ -259,21 +295,36 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
             {isSupported && currentSentence && (
               <div className="flex items-center gap-2">
                 {voices.length > 0 && (
-                  <select
-                    value={selectedVoiceURI ?? ''}
-                    onChange={(e) =>
-                      setSelectedVoiceURI(e.target.value ? e.target.value : null)
-                    }
-                    title="Voice"
-                    className="max-w-[220px] px-2 py-1.5 rounded-lg text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  <div className="group inline-flex h-9 items-center gap-2 rounded-lg px-3 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-[background-color,color] duration-200 ease-out">
+                    <Volume2 className="w-4 h-4 shrink-0 opacity-80 text-blue-600 dark:text-blue-400" aria-hidden />
+                    <select
+                      value={selectedVoiceURI ?? ''}
+                      onChange={(e) =>
+                        setSelectedVoiceURI(e.target.value ? e.target.value : null)
+                      }
+                      title="Voice"
+                      aria-label="Voice"
+                      className="h-7 max-w-[14rem] cursor-pointer appearance-none bg-transparent py-0 pl-0 pr-7 text-xs font-medium text-gray-900 dark:text-gray-100 outline-none border-0 focus:ring-0"
+                    >
+                      <option value="">Auto voice</option>
+                      {visibleVoices.map((v) => (
+                        <option key={v.voiceURI} value={v.voiceURI}>
+                          {v.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none -ml-6 w-4 h-4 shrink-0 opacity-50" aria-hidden />
+                  </div>
+                )}
+                {voices.length > 0 && canExpandVoices && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllVoices((v) => !v)}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors"
+                    title={showAllVoices ? 'Show fewer voices' : 'Show all voices'}
                   >
-                    <option value="">Auto voice</option>
-                    {voices.map((v) => (
-                      <option key={v.voiceURI} value={v.voiceURI}>
-                        {v.name} ({v.lang})
-                      </option>
-                    ))}
-                  </select>
+                    {showAllVoices ? 'Show less' : 'Show all'}
+                  </button>
                 )}
                 {activeVoice && (
                   <span className="hidden lg:inline text-xs text-gray-500 dark:text-gray-400">
@@ -285,7 +336,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                     onClick={handleRetranslate}
                     disabled={retranslating}
                     title="Re-translate last phrase with current language"
-                    className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 disabled:opacity-60 transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 dark:border-emerald-900 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 disabled:opacity-60 transition-colors"
                   >
                     {retranslating ? 'Translating…' : 'Re-translate'}
                   </button>

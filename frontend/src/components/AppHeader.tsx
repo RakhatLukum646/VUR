@@ -32,6 +32,19 @@ export function AppHeader({
               className={`${logoSizeClassName} object-contain`}
               decoding="async"
             />
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1 min-w-0">
+                <span className="text-xl sm:text-2xl font-bold tracking-tight text-indigo-700 dark:text-indigo-400">
+                  Sign
+                </span>
+                <span className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                  Zhan
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-snug">
+                Real-Time Sign Language Translation
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 sm:justify-end">

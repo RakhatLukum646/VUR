@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Mic, Globe } from 'lucide-react';
+import { Play, Square, RotateCcw, Mic, Globe, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { LANGUAGE_OPTIONS } from '../types';
 
@@ -85,15 +85,17 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
         {/* Language + Stats */}
         <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
           {/* Language Selector */}
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-indigo-500" />
+          <div className="group inline-flex h-10 items-center gap-2 rounded-lg px-3 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-[background-color,color] duration-200 ease-out">
+            <Globe className="w-4 h-4 shrink-0 opacity-80 text-indigo-600 dark:text-indigo-400" aria-hidden />
             <select
               value={language}
               onChange={(e) => {
                 const next = LANGUAGE_OPTIONS.find((opt) => opt.value === e.target.value);
                 if (next) setLanguage(next.value);
               }}
-              className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              title="Translation language"
+              aria-label="Translation language"
+              className="h-8 max-w-[12rem] cursor-pointer appearance-none bg-transparent py-0 pl-0 pr-7 text-sm font-medium text-gray-900 dark:text-gray-100 outline-none border-0 focus:ring-0"
             >
               {LANGUAGE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -101,6 +103,7 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
                 </option>
               ))}
             </select>
+            <ChevronDown className="pointer-events-none -ml-6 w-4 h-4 shrink-0 opacity-50" aria-hidden />
           </div>
 
           <div className="flex items-center gap-2">
