@@ -1,4 +1,6 @@
-# VUR — AI Sign Language Translator
+# Signzhan
+
+Russian Sign Language (RSL) to text — real-time translation platform.
 
 Real-time **Russian Sign Language (RSL)** to text translation using MediaPipe hand detection, a temporal S3D neural network (1,598 RSL word classes), and Google Gemini for natural language output.
 
@@ -79,7 +81,7 @@ Browser (HTTPS :443)
 ## Project Structure
 
 ```
-VUR/
+Signzhan/   # local folder name may still be `VUR` when cloned from GitHub
 ├── docker-compose.yml          # Full stack orchestration
 ├── .env.example                # Environment variable template
 ├── Makefile                    # Convenience targets (make dev, make build)
@@ -472,4 +474,4 @@ See `docs/evaluation.md` for the full evaluation workflow.
 
 ## Repository
 
-https://github.com/RakhatLukum646/VUR
+Source code: https://github.com/RakhatLukum646/VUR (Signzhan platform)
