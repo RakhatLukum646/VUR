@@ -1,4 +1,4 @@
-import { BookOpen, Github, Hand, LogOut, UserCircle } from 'lucide-react';
+import { ArrowLeft, BookOpen, Github, Hand, LogOut, UserCircle } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 type AppHeaderProps = {
@@ -30,6 +30,15 @@ export function AppHeader({ userName, onLogout }: AppHeaderProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            {isOnProfile && (
+              <Link
+                to="/"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-gray-700"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">Back to translator</span>
+              </Link>
+            )}
             <a
               href="https://github.com/RakhatLukum646/VUR"
               target="_blank"

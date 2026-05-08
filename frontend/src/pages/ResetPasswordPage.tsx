@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Hand } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { confirmPasswordReset } from '../services/authApi';
 
 export default function ResetPasswordPage() {
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get('token');
 
@@ -12,7 +13,19 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState(
     token ? '' : 'Missing password reset token.'
   );
+  const [didReset, setDidReset] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!didReset) return;
+    const t = window.setTimeout(() => {
+      navigate('/login', {
+        replace: true,
+        state: { message: 'Password updated. Please sign in with your new password.' },
+      });
+    }, 900);
+    return () => window.clearTimeout(t);
+  }, [didReset, navigate]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -35,6 +48,7 @@ export default function ResetPasswordPage() {
       setMessage(result.message);
       setNewPassword('');
       setConfirmPassword('');
+      setDidReset(true);
     } catch (error: unknown) {
       setMessage(
         error instanceof Error ? error.message : 'Failed to reset password'

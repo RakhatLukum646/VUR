@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Hand } from 'lucide-react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { loginUser, resendVerification } from '../services/authApi';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, isBootstrapped, login } = useAuthStore();
 
   const [email, setEmail] = useState('');
@@ -15,7 +16,14 @@ export default function LoginPage() {
   const [requiresSecondFactor, setRequiresSecondFactor] = useState(false);
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const [canResendVerification, setCanResendVerification] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(() => {
+    const state = location.state;
+    if (state && typeof state === 'object' && 'message' in state) {
+      const msg = (state as { message?: unknown }).message;
+      return typeof msg === 'string' ? msg : '';
+    }
+    return '';
+  });
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
 
