@@ -5,11 +5,13 @@ import { useAuthStore } from '../../store/useAuthStore';
 interface Props {
   children: ReactNode;
   requireVerified?: boolean;
+  requireAdmin?: boolean;
 }
 
 export default function ProtectedRoute({
   children,
   requireVerified = false,
+  requireAdmin = false,
 }: Props) {
   const { isAuthenticated, isBootstrapped, user } = useAuthStore();
 
@@ -23,6 +25,10 @@ export default function ProtectedRoute({
 
   if (requireVerified && user && !user.is_verified) {
     return <Navigate to="/profile" replace />;
+  }
+
+  if (requireAdmin && user && user.role !== 'admin') {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

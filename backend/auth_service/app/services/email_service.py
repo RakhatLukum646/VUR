@@ -22,9 +22,14 @@ def _frontend_link(path: str) -> str:
     port = parsed.port
     is_localhost = hostname in {"localhost", "127.0.0.1"}
 
-    if is_localhost and port is None:
-        netloc = f"{hostname}:5173"
-        parsed = parsed._replace(netloc=netloc)
+    if is_localhost:
+        if port is None:
+            netloc = f"{hostname}:5173"
+            parsed = parsed._replace(netloc=netloc)
+
+        # If using the docker gateway TLS port, force https.
+        if parsed.port == 4443 and parsed.scheme != "https":
+            parsed = parsed._replace(scheme="https")
 
     base = urlunparse(parsed).rstrip("/")
     return f"{base}{path}"

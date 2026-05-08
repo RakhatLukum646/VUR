@@ -1,15 +1,32 @@
-import { Play, Square, RotateCcw, Mic, Globe, ChevronDown } from 'lucide-react';
+import { Play, Square, RotateCcw, Mic, Globe } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { LANGUAGE_OPTIONS } from '../types';
+import { MenuSelect } from './MenuSelect';
 
 interface ControlsProps {
   onStart: () => void;
   onStop: () => void;
   onClear: () => void;
+  variant?: 'card' | 'embedded';
 }
 
-export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
+export const Controls = ({
+  onStart,
+  onStop,
+  onClear,
+  variant = 'card',
+}: ControlsProps) => {
   const { isTranslating, connectionStatus, detectedSigns, language, setLanguage } = useAppStore();
+  const languageOptions = LANGUAGE_OPTIONS.map((opt) => ({
+    value: opt.value,
+    label: (
+      <span className="inline-flex items-center gap-2">
+        <span aria-hidden>{opt.flag}</span>
+        <span>{opt.label}</span>
+      </span>
+    ),
+    textLabel: `${opt.label}`,
+  }));
 
   const getStatusColor = () => {
     switch (connectionStatus) {
@@ -37,8 +54,17 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
     }
   };
 
+  const containerClassName =
+    variant === 'embedded'
+      ? 'rounded-xl border border-gray-200/70 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-950/20 p-4'
+      : 'bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700';
+  const helpTextClassName =
+    variant === 'embedded'
+      ? 'mt-4 pt-4 border-t border-gray-200/70 dark:border-gray-700'
+      : 'mt-4 pt-4 border-t border-gray-100 dark:border-gray-700';
+
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+    <div className={containerClassName}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         {/* Status Indicator */}
         <div className="flex items-center gap-3">
@@ -85,25 +111,20 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
         {/* Language + Stats */}
         <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
           {/* Language Selector */}
-          <div className="group inline-flex h-10 items-center gap-2 rounded-lg px-3 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-[background-color,color] duration-200 ease-out">
+          <div className="inline-flex items-center gap-2">
             <Globe className="w-4 h-4 shrink-0 opacity-80 text-indigo-600 dark:text-indigo-400" aria-hidden />
-            <select
+            <MenuSelect
               value={language}
-              onChange={(e) => {
-                const next = LANGUAGE_OPTIONS.find((opt) => opt.value === e.target.value);
+              options={languageOptions}
+              ariaLabel="Translation language"
+              onChange={(nextValue) => {
+                const next = LANGUAGE_OPTIONS.find((opt) => opt.value === nextValue);
                 if (next) setLanguage(next.value);
               }}
-              title="Translation language"
-              aria-label="Translation language"
-              className="h-8 max-w-[12rem] cursor-pointer appearance-none bg-transparent py-0 pl-0 pr-7 text-sm font-medium text-gray-900 dark:text-gray-100 outline-none border-0 focus:ring-0"
-            >
-              {LANGUAGE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.flag} {opt.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none -ml-6 w-4 h-4 shrink-0 opacity-50" aria-hidden />
+              buttonClassName="inline-flex h-10 items-center gap-2 rounded-lg px-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors"
+              menuClassName="absolute left-0 z-50 mt-2 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden"
+              className="relative"
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -121,7 +142,7 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
       </div>
 
       {/* Help Text */}
-      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <div className={helpTextClassName}>
         <p className="text-xs text-gray-500 dark:text-gray-400">
           <span className="font-medium">Tip:</span> Position your hand clearly in front of the camera. 
           The system recognizes Russian Sign Language (RSL) gestures. Hold each sign for ~1 second, then pause between words.

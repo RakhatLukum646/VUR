@@ -18,6 +18,7 @@ interface ServiceStatus {
 interface StatusBarProps {
   detectionGuidance: string | null;
   frameQuality: number;
+  variant?: 'card' | 'embedded';
 }
 
 function getReadinessTone(frameQuality: number) {
@@ -47,6 +48,7 @@ function getReadinessTone(frameQuality: number) {
 export const StatusBar: React.FC<StatusBarProps> = ({
   detectionGuidance,
   frameQuality,
+  variant = 'card',
 }) => {
   const [services, setServices] = useState<ServiceStatus[]>([
     { name: 'MediaPipe', isUp: false, isChecking: true },
@@ -103,8 +105,17 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   const allUp = services.every((service) => service.isUp);
   const readiness = getReadinessTone(frameQuality);
 
+  const containerClassName =
+    variant === 'embedded'
+      ? 'rounded-xl border border-gray-200/70 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-950/20 p-4'
+      : 'bg-white dark:bg-gray-900 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700';
+  const footerBorderClassName =
+    variant === 'embedded'
+      ? 'mt-3 pt-3 border-t border-gray-200/70 dark:border-gray-700'
+      : 'mt-3 pt-3 border-t border-gray-100 dark:border-gray-700';
+
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
+    <div className={containerClassName}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Server className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -153,7 +164,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         </div>
       </div>
 
-      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className={`${footerBorderClassName} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
         <div className="flex gap-6 text-xs text-gray-500 dark:text-gray-400">
           <span>MediaPipe: localhost:8001</span>
           <span>LLM Service: localhost:8002</span>

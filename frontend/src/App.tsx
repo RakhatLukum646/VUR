@@ -222,49 +222,69 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-indigo-50 via-transparent to-transparent dark:from-indigo-950/30"
+      />
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
 
-      <AppHeader userName={user?.name} onLogout={handleLogout} />
+      <AppHeader
+        userName={user?.name}
+        userRole={user?.role ?? null}
+        onLogout={handleLogout}
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <StatusBar
-            detectionGuidance={lastGuidance}
-            frameQuality={lastFrameQuality}
-          />
-        </div>
+        <div className="bg-white/80 dark:bg-gray-900/70 backdrop-blur rounded-2xl border border-gray-200/70 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <Camera
+                  ref={cameraRef}
+                  isTranslating={isTranslating}
+                  landmarks={lastLandmarks}
+                />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="space-y-4">
-            <Camera ref={cameraRef} isTranslating={isTranslating} landmarks={lastLandmarks} />
+                {detectedSigns.length > 0 && (
+                  <button
+                    onClick={handleProcessTranslation}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg font-medium transition-colors shadow-md"
+                  >
+                    Translate Signs to Sentence
+                  </button>
+                )}
 
-            {detectedSigns.length > 0 && (
-              <button
-                onClick={handleProcessTranslation}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg font-medium transition-colors shadow-md"
-              >
-                Translate Signs to Sentence
-              </button>
-            )}
+                <Controls
+                  onStart={handleStart}
+                  onStop={handleStop}
+                  onClear={handleClear}
+                  variant="embedded"
+                />
+              </div>
+
+              <TranslationPanel
+                lastSign={lastSign}
+                confidence={lastConfidence}
+                guidance={lastGuidance}
+                frameQuality={lastFrameQuality}
+                stability={lastStability}
+                sequenceLength={sequenceLength}
+                handDetected={handDetected}
+              />
+            </div>
           </div>
 
-          <TranslationPanel
-            lastSign={lastSign}
-            confidence={lastConfidence}
-            guidance={lastGuidance}
-            frameQuality={lastFrameQuality}
-            stability={lastStability}
-            sequenceLength={sequenceLength}
-            handDetected={handDetected}
-          />
-        </div>
+          <div className="h-px bg-gray-200/70 dark:bg-gray-700" />
 
-        <Controls
-          onStart={handleStart}
-          onStop={handleStop}
-          onClear={handleClear}
-        />
+          <div className="p-6">
+            <StatusBar
+              detectionGuidance={lastGuidance}
+              frameQuality={lastFrameQuality}
+              variant="embedded"
+            />
+          </div>
+        </div>
 
         <div className="mt-8 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">

@@ -5,8 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from jose import JWTError
 
 from app.config import settings
-from app.db import password_reset_tokens_collection, users_collection
-from app.dependencies import get_current_user, get_current_verified_user
+from app.db import auth_sessions_collection, password_reset_tokens_collection, users_collection
+from app.dependencies import (
+    get_current_admin_user,
+    get_current_user,
+    get_current_verified_user,
+)
 from app.rate_limit import limit_requests
 from app.schemas.auth import (
     ChangePasswordRequest,
@@ -83,12 +87,16 @@ async def get_csrf_token(response: Response):
 
 
 def _public_user(user: dict) -> dict:
+    email = (user.get("email") or "").lower()
+    role = (user.get("role") or "").lower()
+    computed_role = "admin" if email in settings.admin_email_list else (role or "user")
     return {
         "id": str(user["_id"]),
         "name": user["name"],
         "email": user["email"],
         "is_verified": user.get("is_verified", False),
         "two_factor_enabled": user.get("two_factor_enabled", False),
+        "role": computed_role,
     }
 
 
@@ -149,6 +157,8 @@ async def register(
         raise HTTPException(status_code=400, detail="Email already registered")
 
     verification_token = secrets.token_urlsafe(32)
+    normalized_email = data.email.lower()
+    computed_role = "admin" if normalized_email in settings.admin_email_list else "user"
     user_doc = {
         "name": data.name,
         "email": data.email,
@@ -158,6 +168,7 @@ async def register(
         "two_factor_enabled": False,
         "two_factor_secret": None,
         "two_factor_recovery_codes": [],
+        "role": computed_role,
     }
 
     result = await users_collection.insert_one(user_doc)
@@ -278,6 +289,90 @@ async def get_me(current_user=Depends(get_current_user)):
     return _public_user(current_user)
 
 
+@router.get("/admin/stats")
+async def admin_stats(_: dict = Depends(get_current_admin_user)):
+    total = await users_collection.count_documents({})
+    verified = await users_collection.count_documents({"is_verified": True})
+    two_fa = await users_collection.count_documents({"two_factor_enabled": True})
+    admins = await users_collection.count_documents({"role": "admin"})
+    return {
+        "total_users": total,
+        "verified_users": verified,
+        "two_factor_enabled_users": two_fa,
+        "admin_users": admins,
+    }
+
+
+@router.get("/admin/users")
+async def admin_list_users(
+    limit: int = 50,
+    offset: int = 0,
+    _: dict = Depends(get_current_admin_user),
+):
+    safe_limit = max(1, min(limit, 200))
+    safe_offset = max(0, offset)
+    cursor = users_collection.find(
+        {},
+        projection={
+            "name": 1,
+            "email": 1,
+            "is_verified": 1,
+            "two_factor_enabled": 1,
+            "role": 1,
+        },
+    ).skip(safe_offset).limit(safe_limit)
+    users = [doc async for doc in cursor]
+    return {
+        "users": [_public_user(u) for u in users],
+        "limit": safe_limit,
+        "offset": safe_offset,
+    }
+
+
+@router.patch("/admin/users/{user_id}/role")
+async def admin_set_role(
+    user_id: str,
+    data: dict,
+    _: dict = Depends(get_current_admin_user),
+):
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user id")
+
+    role = (data.get("role") or "").strip().lower()
+    if role not in {"user", "admin"}:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    await users_collection.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"role": role}},
+    )
+    updated = await users_collection.find_one({"_id": ObjectId(user_id)})
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _public_user(updated)
+
+
+@router.delete("/admin/users/{user_id}", response_model=MessageResponse)
+async def admin_delete_user(
+    user_id: str,
+    admin_user: dict = Depends(get_current_admin_user),
+):
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user id")
+
+    target_id = ObjectId(user_id)
+    if str(admin_user.get("_id")) == str(target_id):
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    result = await users_collection.delete_one({"_id": target_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await auth_sessions_collection.delete_many({"user_id": target_id})
+    await password_reset_tokens_collection.delete_many({"user_id": target_id})
+    return {"message": "User deleted"}
+
+
 @router.patch("/profile")
 async def update_profile(
     data: UpdateProfileRequest,
@@ -309,7 +404,7 @@ async def change_password(
 
 
 @router.post("/verify-email", response_model=MessageResponse)
-async def verify_email(data: VerifyEmailRequest):
+async def verify_email(data: VerifyEmailRequest, request: Request, response: Response):
     user = await users_collection.find_one({"verification_token": data.token})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid verification token")
@@ -321,6 +416,9 @@ async def verify_email(data: VerifyEmailRequest):
             "$unset": {"verification_token": ""},
         },
     )
+    user["is_verified"] = True
+    user.pop("verification_token", None)
+    await _issue_session(user, request, response)
     return {"message": "Email verified successfully"}
 
 

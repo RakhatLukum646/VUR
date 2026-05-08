@@ -5,6 +5,7 @@ import App from './App';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
+import AdminPage from './pages/AdminPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -31,6 +32,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 element={
                   <ProtectedRoute>
                     <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requireVerified requireAdmin>
+                    <AdminPage />
                   </ProtectedRoute>
                 }
               />

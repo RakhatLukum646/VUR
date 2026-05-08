@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthPageLayout } from '../components/AuthPageLayout';
-import { verifyEmail } from '../services/authApi';
+import { bootstrapSession, verifyEmail } from '../services/authApi';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function VerifyEmailPage() {
+  const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { setAccessToken, completeBootstrap } = useAuthStore();
   const [message, setMessage] = useState(() =>
     params.get('token') ? 'Verifying email...' : 'Missing verification token'
   );
@@ -14,11 +17,19 @@ export default function VerifyEmailPage() {
     if (!token) return;
 
     verifyEmail(token)
-      .then((result) => setMessage(result.message))
+      .then(async (result) => {
+        setMessage(result.message);
+        const session = await bootstrapSession();
+        if (session) {
+          setAccessToken(session.access_token);
+          completeBootstrap(session.user);
+          navigate('/', { replace: true });
+        }
+      })
       .catch((err: unknown) =>
         setMessage(err instanceof Error ? err.message : 'Verification failed')
       );
-  }, [params]);
+  }, [params, completeBootstrap, navigate, setAccessToken]);
 
   return (
     <AuthPageLayout>

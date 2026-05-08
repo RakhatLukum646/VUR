@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     email_port: int
     email_user: str
     email_password: str
+    admin_emails: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -59,6 +60,14 @@ class Settings(BaseSettings):
             origin.strip()
             for origin in self.cors_origins.split(",")
             if origin.strip()
+        ]
+
+    @property
+    def admin_email_list(self) -> list[str]:
+        return [
+            email.strip().lower()
+            for email in self.admin_emails.split(",")
+            if email.strip()
         ]
 
 

@@ -164,6 +164,7 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <AppHeader
         userName={user?.name}
+        userRole={user?.role ?? null}
         onLogout={() => {
           logout();
           navigate('/login', { replace: true });

@@ -1,15 +1,17 @@
-import { ArrowLeft, Github, LogOut, UserCircle } from 'lucide-react';
+import { ArrowLeft, Github, LogOut, Shield, UserCircle } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeControls } from './ThemeControls';
 
 type AppHeaderProps = {
   userName?: string | null;
+  userRole?: 'user' | 'admin' | null;
   onLogout?: () => void;
   variant?: 'app' | 'auth';
 };
 
 export function AppHeader({
   userName,
+  userRole,
   onLogout,
   variant = 'app',
 }: AppHeaderProps) {
@@ -68,6 +70,16 @@ export function AppHeader({
               <Github className="w-5 h-5" />
               <span className="hidden sm:inline">GitHub</span>
             </a>
+
+            {!isAuthShell && userRole === 'admin' && (
+              <Link
+                to="/admin"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 hover:bg-indigo-100/70 dark:hover:bg-indigo-950/50 transition-colors text-indigo-800 dark:text-indigo-200"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="hidden md:inline text-sm">Admin</span>
+              </Link>
+            )}
 
             {!isAuthShell && !isOnProfile && (
               <button

@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   Activity,
-  ChevronDown,
   Eye,
   Gauge,
   History,
@@ -13,6 +12,7 @@ import {
 import { useSpeech } from '../hooks/useSpeech';
 import { useAppStore } from '../store/useAppStore';
 import { translateSigns } from '../services/api';
+import { MenuSelect } from './MenuSelect';
 
 interface TranslationPanelProps {
   lastSign: string | null;
@@ -295,25 +295,30 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
             {isSupported && currentSentence && (
               <div className="flex items-center gap-2">
                 {voices.length > 0 && (
-                  <div className="group inline-flex h-9 items-center gap-2 rounded-lg px-3 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-[background-color,color] duration-200 ease-out">
+                  <div className="inline-flex items-center gap-2">
                     <Volume2 className="w-4 h-4 shrink-0 opacity-80 text-blue-600 dark:text-blue-400" aria-hidden />
-                    <select
+                    <MenuSelect
                       value={selectedVoiceURI ?? ''}
-                      onChange={(e) =>
-                        setSelectedVoiceURI(e.target.value ? e.target.value : null)
+                      ariaLabel="Voice"
+                      options={[
+                        {
+                          value: '',
+                          label: 'Auto voice',
+                          textLabel: 'Auto voice',
+                        },
+                        ...visibleVoices.map((v) => ({
+                          value: v.voiceURI,
+                          label: v.name,
+                          textLabel: v.name,
+                        })),
+                      ]}
+                      onChange={(nextValue) =>
+                        setSelectedVoiceURI(nextValue ? nextValue : null)
                       }
-                      title="Voice"
-                      aria-label="Voice"
-                      className="h-7 max-w-[14rem] cursor-pointer appearance-none bg-transparent py-0 pl-0 pr-7 text-xs font-medium text-gray-900 dark:text-gray-100 outline-none border-0 focus:ring-0"
-                    >
-                      <option value="">Auto voice</option>
-                      {visibleVoices.map((v) => (
-                        <option key={v.voiceURI} value={v.voiceURI}>
-                          {v.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none -ml-6 w-4 h-4 shrink-0 opacity-50" aria-hidden />
+                      className="relative"
+                      buttonClassName="inline-flex h-9 items-center gap-2 rounded-lg px-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors"
+                      menuClassName="absolute left-0 z-50 mt-2 w-72 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden"
+                    />
                   </div>
                 )}
                 {voices.length > 0 && canExpandVoices && (
