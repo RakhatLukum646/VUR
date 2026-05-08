@@ -1,4 +1,4 @@
-# Signzhan
+# SignZhan
 
 Russian Sign Language (RSL) to text — real-time translation platform.
 
