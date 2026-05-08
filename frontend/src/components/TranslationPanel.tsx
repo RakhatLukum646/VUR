@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useSpeech } from '../hooks/useSpeech';
 import { useAppStore } from '../store/useAppStore';
-import { LANGUAGE_OPTIONS } from '../types';
 import { translateSigns } from '../services/api';
 
 interface TranslationPanelProps {
@@ -70,7 +69,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   sequenceLength,
   handDetected,
 }) => {
-  const { currentSentence, detectedSigns, language, sessionId, setLanguage, setCurrentSentence, addToHistory, translationHistory } =
+  const { currentSentence, detectedSigns, language, sessionId, setCurrentSentence, addToHistory, translationHistory } =
     useAppStore();
   const {
     isSpeaking,
@@ -145,8 +144,8 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg overflow-hidden flex flex-col h-full border border-gray-100 dark:border-gray-700">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-800 px-6 py-4">
         <h2 className="text-white font-semibold flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
           Translation Panel
@@ -154,8 +153,8 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-4">
-          <div className="flex items-center gap-2 text-blue-700">
+        <div className="rounded-xl border border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 p-4 space-y-4">
+          <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
             <Activity className="w-4 h-4" />
             <span className="text-sm font-medium uppercase tracking-wide">
               Current Detection
@@ -163,58 +162,58 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="text-4xl font-bold text-blue-600 min-w-[60px]">
+            <div className="text-4xl font-bold text-blue-600 dark:text-blue-400 min-w-[60px]">
               {lastSign || '-'}
             </div>
             <div className="flex-1 space-y-3">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm text-gray-600">Classifier confidence</span>
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Classifier confidence</span>
+                  <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-blue-500 transition-all duration-300"
                       style={{ width: `${(confidence || 0) * 100}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {Math.round((confidence || 0) * 100)}%
                   </span>
                 </div>
-                <p className="text-xs text-gray-500">{confidenceExplanation}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{confidenceExplanation}</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-white px-3 py-2">
-                  <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500">
+                <div className="rounded-lg bg-white dark:bg-gray-800 px-3 py-2">
+                  <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                     <Gauge className="w-3.5 h-3.5" />
                     Frame quality
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-emerald-500 transition-all duration-300"
                         style={{ width: `${frameQuality * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-gray-700">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       {Math.round(frameQuality * 100)}%
                     </span>
                   </div>
                 </div>
 
-                <div className="rounded-lg bg-white px-3 py-2">
-                  <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500">
+                <div className="rounded-lg bg-white dark:bg-gray-800 px-3 py-2">
+                  <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                     <Eye className="w-3.5 h-3.5" />
                     Stability
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-violet-500 transition-all duration-300"
                         style={{ width: `${stability * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-gray-700">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       {Math.round(stability * 100)}%
                     </span>
                   </div>
@@ -223,57 +222,42 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
             </div>
           </div>
 
-          <div className="rounded-lg border border-blue-100 bg-white px-4 py-3">
-            <p className="text-sm font-medium text-blue-900">
+          <div className="rounded-lg border border-blue-100 dark:border-blue-900 bg-white dark:bg-gray-800 px-4 py-3">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
               {guidance ?? 'Show one hand in the frame to start detection.'}
             </p>
-            <p className="mt-1 text-xs text-blue-700">
+            <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
               Buffered signs in current phrase: {sequenceLength}
             </p>
           </div>
         </div>
 
         <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
             Detected Signs
           </h3>
-          <div className="bg-gray-50 rounded-lg p-4 min-h-[80px]">
+          <div className="bg-gray-50 dark:bg-gray-800/80 rounded-lg p-4 min-h-[80px]">
             {signsDisplay ? (
-              <p className="text-lg font-mono text-gray-800 break-all">
+              <p className="text-lg font-mono text-gray-800 dark:text-gray-100 break-all">
                 {signsDisplay}
               </p>
             ) : (
-              <p className="text-gray-400 italic">No signs detected yet...</p>
+              <p className="text-gray-400 dark:text-gray-500 italic">No signs detected yet...</p>
             )}
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {detectedSigns.length} sign{detectedSigns.length !== 1 ? 's' : ''} detected
           </p>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-700">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">
               Translated Sentence
             </h3>
             {isSupported && currentSentence && (
               <div className="flex items-center gap-2">
-                <select
-                  value={language}
-                  onChange={(e) => {
-                    const next = LANGUAGE_OPTIONS.find((opt) => opt.value === e.target.value);
-                    if (next) setLanguage(next.value);
-                  }}
-                  title="Language"
-                  className="px-2 py-1 rounded-full text-xs bg-white border border-gray-200 text-gray-700"
-                >
-                  {LANGUAGE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.flag} {opt.label}
-                    </option>
-                  ))}
-                </select>
                 {voices.length > 0 && (
                   <select
                     value={selectedVoiceURI ?? ''}
@@ -281,7 +265,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                       setSelectedVoiceURI(e.target.value ? e.target.value : null)
                     }
                     title="Voice"
-                    className="max-w-[220px] px-2 py-1 rounded-full text-xs bg-white border border-gray-200 text-gray-700"
+                    className="max-w-[220px] px-2 py-1.5 rounded-lg text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   >
                     <option value="">Auto voice</option>
                     {voices.map((v) => (
@@ -292,7 +276,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                   </select>
                 )}
                 {activeVoice && (
-                  <span className="hidden lg:inline text-xs text-gray-500">
+                  <span className="hidden lg:inline text-xs text-gray-500 dark:text-gray-400">
                     Reading: {activeVoice.name} ({activeVoice.lang})
                   </span>
                 )}
@@ -301,7 +285,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                     onClick={handleRetranslate}
                     disabled={retranslating}
                     title="Re-translate last phrase with current language"
-                    className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-60 transition-colors"
+                    className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 disabled:opacity-60 transition-colors"
                   >
                     {retranslating ? 'Translating…' : 'Re-translate'}
                   </button>
@@ -310,7 +294,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                   <button
                     onClick={() => (isPaused ? resume() : pause())}
                     title={isPaused ? 'Resume' : 'Pause'}
-                    className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                    className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
                     {isPaused ? 'Resume' : 'Pause'}
                   </button>
@@ -324,8 +308,8 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                   }
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     isSpeaking && activeTextKey === 'current'
-                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                      : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-950'
+                      : 'bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/60'
                   }`}
                 >
                   {isSpeaking && activeTextKey === 'current' ? (
@@ -343,9 +327,9 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               </div>
             )}
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 min-h-[80px]">
+          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg p-4 min-h-[80px]">
             {currentSentence ? (
-              <p className="text-lg text-gray-800">
+              <p className="text-lg text-gray-800 dark:text-gray-100">
                 {currentSentenceTokens.map((t, idx) => {
                   const shouldHighlight =
                     activeTextKey === 'current' &&
@@ -358,7 +342,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                       key={`${idx}-${t.start}`}
                       className={
                         shouldHighlight
-                          ? 'bg-yellow-200 rounded-sm'
+                          ? 'bg-yellow-200 dark:bg-yellow-700/50 rounded-sm'
                           : undefined
                       }
                     >
@@ -368,7 +352,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                 })}
               </p>
             ) : (
-              <p className="text-gray-400 italic">
+              <p className="text-gray-400 dark:text-gray-500 italic">
                 Translation will appear here when you complete a sign sequence...
               </p>
             )}
@@ -377,7 +361,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
 
         {recentHistory.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
               <History className="w-4 h-4" />
               Recent History
             </h3>
@@ -385,13 +369,13 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               {recentHistory.map((item, index) => (
                 <div
                   key={index}
-                  className="bg-gray-50 rounded-lg p-3 text-sm flex items-start gap-2"
+                  className="bg-gray-50 dark:bg-gray-800/80 rounded-lg p-3 text-sm flex items-start gap-2"
                 >
                   <div className="flex-1">
-                    <div className="text-gray-500 text-xs mb-1">
+                    <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
                       {item.signs.join(' ')}
                     </div>
-                    <div className="text-gray-800 font-medium">
+                    <div className="text-gray-800 dark:text-gray-100 font-medium">
                       {item.translation}
                     </div>
                   </div>
@@ -402,7 +386,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                         speak(item.translation, language);
                       }}
                       title="Read aloud"
-                      className="mt-0.5 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0"
+                      className="mt-0.5 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors flex-shrink-0"
                     >
                       <Volume2 className="w-3.5 h-3.5" />
                     </button>

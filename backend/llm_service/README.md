@@ -1,6 +1,6 @@
-# LLM Service
+# Signzhan — LLM Service
 
-Natural language translation service for sign language detection.
+Natural language translation for the Signzhan sign-language pipeline.
 
 ## Features
 

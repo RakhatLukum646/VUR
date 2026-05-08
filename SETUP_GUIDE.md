@@ -1,4 +1,4 @@
-# Setup Guide — AI Sign Language Translator
+# Setup Guide — Signzhan
 
 ## Prerequisites
 
@@ -154,7 +154,7 @@ DEBUG=true
 ## Project Structure
 
 ```
-VUR/
+Signzhan/   # after `git clone` the directory is often still named `VUR`
 ├── .env                            # Gemini key (for docker-compose)
 ├── .env.example
 ├── docker-compose.yml

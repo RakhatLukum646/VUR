@@ -33,7 +33,7 @@ async def lifespan(_: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="VUR Auth Service", lifespan=lifespan)
+    app = FastAPI(title="Signzhan Auth Service", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,

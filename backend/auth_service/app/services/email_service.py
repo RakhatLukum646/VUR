@@ -15,7 +15,7 @@ def send_verification_email(email: str, token: str):
     body = f"""
     Hello,
 
-    Thank you for registering in VUR Translator.
+    Thank you for registering in Signzhan.
 
     Please verify your email by clicking the link below:
 
@@ -25,7 +25,7 @@ def send_verification_email(email: str, token: str):
     """
 
     msg = MIMEMultipart()
-    msg["From"] = f"VUR Translator <{settings.email_user}>"
+    msg["From"] = f"Signzhan <{settings.email_user}>"
     msg["To"] = email
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain", "utf-8"))
@@ -51,7 +51,7 @@ def send_password_reset_email(email: str, token: str):
     body = f"""
     Hello,
 
-    We received a request to reset your VUR Translator password.
+    We received a request to reset your Signzhan password.
 
     Use the link below to set a new password:
 
@@ -62,7 +62,7 @@ def send_password_reset_email(email: str, token: str):
     """
 
     msg = MIMEMultipart()
-    msg["From"] = f"VUR Translator <{settings.email_user}>"
+    msg["From"] = f"Signzhan <{settings.email_user}>"
     msg["To"] = email
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain", "utf-8"))

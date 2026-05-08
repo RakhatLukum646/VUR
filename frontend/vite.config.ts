@@ -7,24 +7,24 @@ export default defineConfig({
   server: {
     proxy: {
       // Avoid CORS in local dev: frontend stays on http://localhost:<vitePort>
-      // while Vite proxies API calls to the Docker gateway (https://localhost).
+      // while Vite proxies API calls to the Docker gateway (https://localhost:4443).
       '/auth': {
-        target: 'https://localhost',
+        target: 'https://localhost:4443',
         changeOrigin: true,
         secure: false,
       },
       '/api': {
-        target: 'https://localhost',
+        target: 'https://localhost:4443',
         changeOrigin: true,
         secure: false,
       },
       '/health': {
-        target: 'https://localhost',
+        target: 'https://localhost:4443',
         changeOrigin: true,
         secure: false,
       },
       '/ws': {
-        target: 'wss://localhost',
+        target: 'wss://localhost:4443',
         ws: true,
         changeOrigin: true,
         secure: false,

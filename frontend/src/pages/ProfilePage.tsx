@@ -161,7 +161,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <AppHeader
         userName={user?.name}
         onLogout={() => {
@@ -171,10 +171,10 @@ export default function ProfilePage() {
       />
 
       <div className="max-w-3xl mx-auto space-y-6 px-4 py-8">
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Profile</h1>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Profile</h1>
 
-          <div className="space-y-2 text-gray-700">
+          <div className="space-y-2 text-gray-700 dark:text-gray-300">
             <p>
               <span className="font-semibold">Email:</span> {user?.email}
             </p>
@@ -189,29 +189,29 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Change Name</h2>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Change Name</h2>
           <div className="space-y-4">
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
             />
             <button
               onClick={handleNameUpdate}
-              className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+              className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
             >
               Save name
             </button>
             {profileMessage && (
-              <p className="text-sm text-gray-600">{profileMessage}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{profileMessage}</p>
             )}
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
             Change Password
           </h2>
           <div className="space-y-4">
@@ -220,53 +220,53 @@ export default function ProfilePage() {
               placeholder="Current password"
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
             />
             <input
               type="password"
               placeholder="New password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
             />
             <button
               onClick={handlePasswordChange}
-              className="px-5 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="px-5 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white"
             >
               Change password
             </button>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Password changes close all active sessions, including this one.
             </p>
             {passwordMessage && (
-              <p className="text-sm text-gray-600">{passwordMessage}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{passwordMessage}</p>
             )}
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
             Session Security
           </h2>
           <div className="space-y-4">
-            <p className="text-gray-700">
+            <p className="text-gray-700 dark:text-gray-300">
               Sessions are stored as secure HTTP-only cookies. Use this control if
               you signed in on another device and want to invalidate every session.
             </p>
             <button
               onClick={handleLogoutAllDevices}
-              className="px-5 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white"
+              className="px-5 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500 text-white"
             >
               Log out all devices
             </button>
             {securityMessage && (
-              <p className="text-sm text-gray-600">{securityMessage}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{securityMessage}</p>
             )}
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
             Two-Factor Authentication
           </h2>
           <div className="space-y-4">
@@ -274,20 +274,20 @@ export default function ProfilePage() {
               <>
                 <button
                   onClick={handleSetup2FA}
-                  className="px-5 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white"
+                  className="px-5 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white"
                 >
                   Setup 2FA
                 </button>
 
                 {twoFaSecret && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
-                    <p className="text-sm text-gray-700">
+                  <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-4 space-y-2">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
                       Add this secret to your authenticator:
                     </p>
-                    <p className="font-mono text-sm break-all text-gray-900">
+                    <p className="font-mono text-sm break-all text-gray-900 dark:text-gray-100">
                       {twoFaSecret}
                     </p>
-                    <p className="text-xs text-gray-500 break-all">{twoFaUrl}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 break-all">{twoFaUrl}</p>
                   </div>
                 )}
 
@@ -302,11 +302,11 @@ export default function ProfilePage() {
                           event.target.value.replace(/\D/g, '').slice(0, 6)
                         )
                       }
-                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                     />
                     <button
                       onClick={handleEnable2FA}
-                      className="px-5 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white"
+                      className="px-5 py-3 rounded-lg bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500 text-white"
                     >
                       Enable 2FA
                     </button>
@@ -317,17 +317,17 @@ export default function ProfilePage() {
 
             {user?.two_factor_enabled && (
               <>
-                <p className="text-green-700">2FA is enabled on your account.</p>
+                <p className="text-green-700 dark:text-green-400">2FA is enabled on your account.</p>
                 <input
                   type="password"
                   placeholder="Current password to regenerate recovery codes"
                   value={recoveryPassword}
                   onChange={(event) => setRecoveryPassword(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                 />
                 <button
                   onClick={handleRegenerateRecoveryCodes}
-                  className="px-5 py-3 rounded-lg bg-slate-800 hover:bg-slate-900 text-white"
+                  className="px-5 py-3 rounded-lg bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white"
                 >
                   Regenerate recovery codes
                 </button>
@@ -335,15 +335,15 @@ export default function ProfilePage() {
             )}
 
             {recoveryCodes.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-sm font-medium text-amber-900 mb-2">
+              <div className="bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-2">
                   Store these recovery codes offline. Each code works once.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {recoveryCodes.map((code) => (
                     <code
                       key={code}
-                      className="rounded-md bg-white px-3 py-2 text-sm text-gray-900"
+                      className="rounded-md bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                     >
                       {code}
                     </code>
@@ -352,7 +352,7 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {twoFaMessage && <p className="text-sm text-gray-600">{twoFaMessage}</p>}
+            {twoFaMessage && <p className="text-sm text-gray-600 dark:text-gray-400">{twoFaMessage}</p>}
           </div>
         </div>
       </div>

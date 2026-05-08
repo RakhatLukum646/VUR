@@ -102,6 +102,7 @@ export interface AppState {
   startTranslation: () => void;
   stopTranslation: () => void;
   addDetectedSign: (sign: string) => void;
+  clearDetectedSigns: () => void;
   setCurrentSentence: (sentence: string) => void;
   setConfidence: (confidence: number) => void;
   setLanguage: (language: Language) => void;

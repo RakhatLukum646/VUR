@@ -1,14 +1,25 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: #111827;
+}
+
+/*
+ * Do not set color-scheme: dark on :root — it makes the UA paint native inputs
+ * with light text while our Tailwind light backgrounds can still win → unreadable.
+ */
+:root.dark {
+  color: #f3f4f6;
 }
 
 body {
@@ -17,6 +28,19 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background-color: #f3f4f6;
+  color: inherit;
+}
+
+.dark body {
+  background-color: #030712;
+}
+
+/* Smooth theme toggle: only while switching (see ThemeSync). */
+html.theme-transition-active,
+html.theme-transition-active * {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 0.38s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #root {
@@ -24,6 +48,20 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
+  color: inherit;
+}
+
+/* Keep form controls aligned with our palette (avoids UA dark fill + wrong text). */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  color-scheme: light;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea {
+  color-scheme: dark;
 }
 
 /* Custom scrollbar */
@@ -37,13 +75,38 @@ body {
   border-radius: 4px;
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 4px;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Approximate color-vision simulation (whole viewport; optional assist) */
+html.cb-protanopia {
+  filter: url("#cb-protanopia");
+}
+
+html.cb-deuteranopia {
+  filter: url("#cb-deuteranopia");
+}
+
+html.cb-tritanopia {
+  filter: url("#cb-tritanopia");
 }
 
 /* Camera video styling */

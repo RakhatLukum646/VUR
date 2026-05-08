@@ -1,4 +1,4 @@
-# MediaPipe Service - Sign Language Detection
+# Signzhan — MediaPipe Service
 
 **Developer:** Vlad (Backend - MediaPipe)
 

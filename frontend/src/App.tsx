@@ -75,6 +75,7 @@ function App() {
     startTranslation,
     stopTranslation,
     addDetectedSign,
+    clearDetectedSigns,
     setCurrentSentence,
     clearSession: clearStore,
     addToHistory,
@@ -113,6 +114,7 @@ function App() {
           timestamp: Date.now(),
         });
         accumulatedSignsRef.current = [];
+        clearDetectedSigns();
 
         if (fallback) {
           toast.warning(
@@ -194,6 +196,7 @@ function App() {
       }
 
       accumulatedSignsRef.current = [];
+      clearDetectedSigns();
     } catch (err) {
       console.error('Translation failed:', err);
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -204,8 +207,9 @@ function App() {
       setCurrentSentence(rawFallback);
       addToHistory({ signs: [...signs], translation: rawFallback, timestamp: Date.now() });
       accumulatedSignsRef.current = [];
+      clearDetectedSigns();
     }
-  }, [sessionId, language, setCurrentSentence, addToHistory, toast]);
+  }, [sessionId, language, setCurrentSentence, addToHistory, toast, clearDetectedSigns]);
 
   useEffect(() => {
     return () => {
@@ -217,7 +221,7 @@ function App() {
   }, [disconnect]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
 
       <AppHeader userName={user?.name} onLogout={handleLogout} />
@@ -238,7 +242,7 @@ function App() {
             {detectedSigns.length > 0 && (
               <button
                 onClick={handleProcessTranslation}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-md"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg font-medium transition-colors shadow-md"
               >
                 Translate Signs to Sentence
               </button>
@@ -262,11 +266,11 @@ function App() {
           onClear={handleClear}
         />
 
-        <div className="mt-8 bg-blue-50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">
+        <div className="mt-8 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
             How to Use
           </h3>
-          <ol className="space-y-2 text-blue-800">
+          <ol className="space-y-2 text-blue-800 dark:text-blue-200">
             <li className="flex items-start gap-2">
               <span className="font-bold">1.</span>
               <span>Allow camera access when prompted</span>
@@ -299,16 +303,16 @@ function App() {
               <span>Click "Clear" to start a new session</span>
             </li>
           </ol>
-          <p className="mt-4 text-sm text-blue-900">
+          <p className="mt-4 text-sm text-blue-900 dark:text-blue-200">
             Privacy note: camera frames are processed for live recognition and are
             not stored by the frontend.
           </p>
         </div>
       </main>
 
-      <footer className="bg-white border-t border-gray-200 mt-12">
+      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-400">
             <p>AITU Diploma Project &bull; Team: Ulzhan, Vlad, Rakhat</p>
             <p>
               Session ID: <span className="font-mono">{sessionId}</span>

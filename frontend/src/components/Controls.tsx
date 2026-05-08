@@ -38,14 +38,14 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
+    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
       <div className="flex flex-wrap items-center justify-between gap-4">
         {/* Status Indicator */}
         <div className="flex items-center gap-3">
           <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} />
           <div>
-            <p className="text-sm font-medium text-gray-700">{getStatusText()}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{getStatusText()}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               WebSocket {connectionStatus === 'connected' ? 'active' : 'inactive'}
             </p>
           </div>
@@ -57,7 +57,7 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
             <button
               onClick={onStart}
               disabled={connectionStatus === 'connecting'}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors shadow-md"
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors shadow-md"
             >
               <Play className="w-5 h-5" />
               Start Translation
@@ -75,7 +75,7 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
           <button
             onClick={onClear}
             disabled={detectedSigns.length === 0}
-            className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 rounded-lg font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-400 text-gray-700 dark:text-gray-200 rounded-lg font-medium transition-colors"
           >
             <RotateCcw className="w-5 h-5" />
             Clear
@@ -83,7 +83,7 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
         </div>
 
         {/* Language + Stats */}
-        <div className="flex items-center gap-4 text-sm text-gray-600">
+        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
           {/* Language Selector */}
           <div className="flex items-center gap-2">
             <Globe className="w-4 h-4 text-indigo-500" />
@@ -93,7 +93,7 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
                 const next = LANGUAGE_OPTIONS.find((opt) => opt.value === e.target.value);
                 if (next) setLanguage(next.value);
               }}
-              className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             >
               {LANGUAGE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -109,7 +109,7 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
           </div>
           
           {isTranslating && (
-            <div className="flex items-center gap-2 text-green-600">
+            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="font-medium">Translating...</span>
             </div>
@@ -118,8 +118,8 @@ export const Controls = ({ onStart, onStop, onClear }: ControlsProps) => {
       </div>
 
       {/* Help Text */}
-      <div className="mt-4 pt-4 border-t border-gray-100">
-        <p className="text-xs text-gray-500">
+      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           <span className="font-medium">Tip:</span> Position your hand clearly in front of the camera. 
           The system recognizes Russian Sign Language (RSL) gestures. Hold each sign for ~1 second, then pause between words.
         </p>

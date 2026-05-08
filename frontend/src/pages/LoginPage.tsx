@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Hand } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { AuthPageLayout } from '../components/AuthPageLayout';
 import { loginUser, resendVerification } from '../services/authApi';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -90,25 +90,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Hand className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              AI Sign Language Translator
-            </h1>
-            <p className="text-sm text-gray-500">Sign in with a secure session</p>
-          </div>
+    <AuthPageLayout>
+      <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Sign in</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Sign in with a secure session
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label
               htmlFor="login-email"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >
               Email
             </label>
@@ -120,7 +115,7 @@ export default function LoginPage() {
               placeholder="Enter your email"
               autoComplete="email"
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -128,13 +123,13 @@ export default function LoginPage() {
             <div className="flex items-center justify-between mb-2">
               <label
                 htmlFor="login-password"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
                 Password
               </label>
               <Link
                 to="/forgot-password"
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
               >
                 Forgot password?
               </Link>
@@ -147,12 +142,12 @@ export default function LoginPage() {
               placeholder="Enter your password"
               autoComplete="current-password"
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           {requiresSecondFactor && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-4">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 p-4 space-y-4">
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -160,7 +155,7 @@ export default function LoginPage() {
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     !useRecoveryCode
                       ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600'
                   }`}
                 >
                   Authenticator
@@ -171,7 +166,7 @@ export default function LoginPage() {
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     useRecoveryCode
                       ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600'
                   }`}
                 >
                   Recovery code
@@ -182,7 +177,7 @@ export default function LoginPage() {
                 <div>
                   <label
                     htmlFor="login-twofa-code"
-                    className="block text-sm font-medium text-gray-700 mb-2"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
                     2FA Code
                   </label>
@@ -198,14 +193,14 @@ export default function LoginPage() {
                     placeholder="Enter 6-digit code"
                     inputMode="numeric"
                     maxLength={6}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               ) : (
                 <div>
                   <label
                     htmlFor="login-recovery-code"
-                    className="block text-sm font-medium text-gray-700 mb-2"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
                     Recovery Code
                   </label>
@@ -218,7 +213,7 @@ export default function LoginPage() {
                     }
                     placeholder="ABCD-1234"
                     autoCapitalize="characters"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               )}
@@ -226,7 +221,7 @@ export default function LoginPage() {
           )}
 
           {message && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
               {message}
             </div>
           )}
@@ -234,7 +229,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading
               ? 'Signing in...'
@@ -249,22 +244,22 @@ export default function LoginPage() {
             type="button"
             onClick={handleResendVerification}
             disabled={resending}
-            className="mt-4 w-full rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100 disabled:opacity-60"
+            className="mt-4 w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm font-medium text-amber-800 dark:text-amber-200 transition-colors hover:bg-amber-100 dark:hover:bg-amber-950/60 disabled:opacity-60"
           >
             {resending ? 'Sending verification email...' : 'Resend verification email'}
           </button>
         )}
 
-        <div className="text-center text-sm text-gray-600 mt-5">
+        <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-5">
           Don&apos;t have an account?{' '}
           <Link
             to="/signup"
-            className="text-blue-600 hover:text-blue-700 font-medium"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
           >
             Sign up
           </Link>
         </div>
       </div>
-    </div>
+    </AuthPageLayout>
   );
 }

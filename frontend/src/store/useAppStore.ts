@@ -39,6 +39,8 @@ export const useAppStore = create<AppState>()(
         detectedSigns: [...state.detectedSigns, sign],
       })),
 
+      clearDetectedSigns: () => set({ detectedSigns: [] }),
+
       setCurrentSentence: (sentence) => set({ currentSentence: sentence }),
 
       setConfidence: (confidence) => set({ confidence }),
