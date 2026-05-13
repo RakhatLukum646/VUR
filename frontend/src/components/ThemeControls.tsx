@@ -1,7 +1,8 @@
 import { ChevronDown, Check, Glasses, Monitor, Moon, Sun } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ColorblindMode, ColorScheme } from '../store/useThemeStore';
 import { useThemeStore } from '../store/useThemeStore';
+import { useThemeControlsMenuClose } from '../hooks/useThemeControlsMenuClose';
 
 const COLORBLIND_OPTIONS: { value: ColorblindMode; label: string }[] = [
   { value: 'none', label: 'Default' },
@@ -114,35 +115,4 @@ export function ThemeControls() {
       </div>
     </div>
   );
-}
-
-function isEventTargetInNode(target: EventTarget | null, node: HTMLElement | null) {
-  if (!target) return false;
-  if (!node) return false;
-  if (!(target instanceof Node)) return false;
-  return node.contains(target);
-}
-
-// Close menus on outside click / Escape.
-// Kept in this file to avoid adding a shared dependency just for one dropdown.
-export function useThemeControlsMenuClose(
-  isOpen: boolean,
-  onClose: () => void,
-  ref: React.RefObject<HTMLDivElement | null>
-) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!isEventTargetInNode(e.target, ref.current)) onClose();
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isOpen, onClose, ref]);
 }

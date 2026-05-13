@@ -1,26 +1,21 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from './store/useAuthStore';
-import { Camera } from './components/Camera';
-import type { CameraRef } from './components/Camera';
-import { TranslationPanel } from './components/TranslationPanel';
-import { Controls } from './components/Controls';
-import { StatusBar } from './components/StatusBar';
-import { ToastContainer } from './components/Toast';
-import { useWebSocket } from './hooks/useWebSocket';
-import { useToast } from './hooks/useToast';
-import { useAppStore } from './store/useAppStore';
-import { translateSigns, clearSession as clearSessionApi } from './services/api';
-import { logoutUser } from './services/authApi';
-import { AppHeader } from './components/AppHeader';
-import './App.css';
+import { Camera } from '../components/Camera';
+import type { CameraRef } from '../components/Camera';
+import { TranslationPanel } from '../components/TranslationPanel';
+import { Controls } from '../components/Controls';
+import { StatusBar } from '../components/StatusBar';
+import { ToastContainer } from '../components/Toast';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { useToast } from '../hooks/useToast';
+import { useAppStore } from '../store/useAppStore';
+import { translateSigns, clearSession as clearSessionApi } from '../services/api';
+import '../App.css';
 
-function App() {
+export default function TranslatorPage() {
   const cameraRef = useRef<CameraRef>(null);
   const frameIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const accumulatedSignsRef = useRef<string[]>([]);
   const wsRef = useRef<ReturnType<typeof useWebSocket> | null>(null);
-
 
   const { toasts, dismiss, toast } = useToast();
 
@@ -29,19 +24,6 @@ function App() {
   useEffect(() => {
     wsRef.current = ws;
   }, [ws]);
-
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
-
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch {
-      // Clear local auth state even if the backend session is already gone.
-    }
-    logout();
-    navigate('/login');
-  };
 
   const {
     connect,
@@ -60,7 +42,6 @@ function App() {
     error: wsError,
   } = ws;
 
-  // Surface WebSocket connection errors as toasts
   useEffect(() => {
     if (wsError) {
       toast.error('Connection failed', wsError);
@@ -81,13 +62,11 @@ function App() {
     addToHistory,
   } = useAppStore();
 
-  // If the user changes the target language mid-session, inform the WebSocket backend.
   useEffect(() => {
     if (!isTranslating) return;
     sendCommand('start');
   }, [isTranslating, language, sendCommand]);
 
-  // Handle incoming WebSocket messages (detection + translation)
   useEffect(() => {
     if (!lastMessage) return;
 
@@ -129,7 +108,7 @@ function App() {
       const { message } = lastMessage.payload;
       toast.error('Service error', message || 'An unexpected error occurred.');
     }
-  }, [lastMessage, addDetectedSign, setCurrentSentence, addToHistory, toast]);
+  }, [lastMessage, addDetectedSign, setCurrentSentence, addToHistory, toast, clearDetectedSigns]);
 
   const handleStart = useCallback(() => {
     startTranslation();
@@ -142,7 +121,7 @@ function App() {
         if (frame) {
           wsRef.current?.sendFrame(frame);
         }
-      }, 100); // ~10 FPS
+      }, 100);
     }
   }, [startTranslation, connect, toast]);
 
@@ -202,7 +181,6 @@ function App() {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       toast.error('Translation failed', msg);
 
-      // Fallback: show raw signs as the "translation"
       const rawFallback = signs.join(' ');
       setCurrentSentence(rawFallback);
       addToHistory({ signs: [...signs], translation: rawFallback, timestamp: Date.now() });
@@ -221,20 +199,9 @@ function App() {
   }, [disconnect]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-indigo-50 via-transparent to-transparent dark:from-indigo-950/30"
-      />
+    <>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
 
-      <AppHeader
-        userName={user?.name}
-        userRole={user?.role ?? null}
-        onLogout={handleLogout}
-      />
-
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white/80 dark:bg-gray-900/70 backdrop-blur rounded-2xl border border-gray-200/70 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="p-6">
@@ -248,6 +215,7 @@ function App() {
 
                 {detectedSigns.length > 0 && (
                   <button
+                    type="button"
                     onClick={handleProcessTranslation}
                     className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg font-medium transition-colors shadow-md"
                   >
@@ -297,7 +265,7 @@ function App() {
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold">2.</span>
-              <span>Click "Start Translation" to begin</span>
+              <span>Click &quot;Start Translation&quot; to begin</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold">3.</span>
@@ -314,13 +282,13 @@ function App() {
             <li className="flex items-start gap-2">
               <span className="font-bold">5.</span>
               <span>
-                Click "Translate Signs to Sentence" to get a grammatically
+                Click &quot;Translate Signs to Sentence&quot; to get a grammatically
                 correct translation via Gemini
               </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold">6.</span>
-              <span>Click "Clear" to start a new session</span>
+              <span>Click &quot;Clear&quot; to start a new session</span>
             </li>
           </ol>
           <p className="mt-4 text-sm text-blue-900 dark:text-blue-200">
@@ -340,8 +308,6 @@ function App() {
           </div>
         </div>
       </footer>
-    </div>
+    </>
   );
 }
-
-export default App;

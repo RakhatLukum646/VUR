@@ -1,7 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import App from './App';
+import MainLayout from './layouts/MainLayout';
+import TranslatorPage from './pages/TranslatorPage';
+import ResourcesPage from './pages/ResourcesPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
@@ -48,11 +50,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 element={
                   <ProtectedRoute requireVerified>
                     <ErrorBoundary>
-                      <App />
+                      <MainLayout />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }
-              />
+              >
+                <Route index element={<TranslatorPage />} />
+                <Route path="resources" element={<ResourcesPage />} />
+              </Route>
             </Routes>
           </AuthBootstrap>
         </ThemeSync>
