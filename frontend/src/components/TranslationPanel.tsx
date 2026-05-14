@@ -437,11 +437,13 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                   </div>
                   {isSupported && (
                     <button
+                      type="button"
                       onClick={() => {
                         setActiveTextKey(index);
                         speak(item.translation, language);
                       }}
                       title="Read aloud"
+                      aria-label="Read aloud"
                       className="mt-0.5 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors flex-shrink-0"
                     >
                       <Volume2 className="w-3.5 h-3.5" />
