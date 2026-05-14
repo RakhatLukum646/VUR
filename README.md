@@ -81,7 +81,7 @@ Browser (HTTPS :443)
 ## Project Structure
 
 ```
-Signzhan/   # local folder name may still be `VUR` when cloned from GitHub
+SignZhan/   # local folder name may still be `VUR` when cloned from GitHub
 ├── docker-compose.yml          # Full stack orchestration
 ├── .env.example                # Environment variable template
 ├── Makefile                    # Convenience targets (make dev, make build)
@@ -474,4 +474,4 @@ See `docs/evaluation.md` for the full evaluation workflow.
 
 ## Repository
 
-Source code: https://github.com/RakhatLukum646/VUR (Signzhan platform)
+Source code: https://github.com/RakhatLukum646/VUR (SignZhan platform)
