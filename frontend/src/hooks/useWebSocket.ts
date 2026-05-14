@@ -23,6 +23,7 @@ export function useWebSocket(): UseWebSocketReturn {
   const [lastStability, setLastStability] = useState(0);
   const [sequenceLength, setSequenceLength] = useState(0);
   const [handDetected, setHandDetected] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { sessionId, language, setConnected, setConnectionStatus } = useAppStore();
@@ -74,10 +75,21 @@ export function useWebSocket(): UseWebSocketReturn {
               stability,
               sequence_length,
             } = data.payload;
-            setLastSign(sign ?? null);
-            setLastConfidence(confidence ?? 0);
+            const isAccumulating = hand_detected && (sign === null || sign === undefined);
+            if (sign !== null && sign !== undefined) {
+              setLastSign(sign);
+              setLastConfidence(confidence ?? 0);
+              setIsCapturing(false);
+            } else if (hand_detected) {
+              // Buffer is re-accumulating — keep the previous sign visible
+              setIsCapturing(true);
+            } else {
+              setLastSign(null);
+              setLastConfidence(0);
+              setIsCapturing(false);
+            }
             setLastGuidance(guidance ?? null);
-            setLastFrameQuality(frame_quality ?? 0);
+            setLastFrameQuality(isAccumulating ? (frame_quality ?? 0) : 0);
             setLastStability(stability ?? 0);
             setSequenceLength(sequence_length ?? 0);
             setHandDetected(Boolean(hand_detected));
@@ -188,6 +200,7 @@ export function useWebSocket(): UseWebSocketReturn {
     setLastStability(0);
     setSequenceLength(0);
     setHandDetected(false);
+    setIsCapturing(false);
   }, []);
 
   // Cleanup on unmount
@@ -216,6 +229,7 @@ export function useWebSocket(): UseWebSocketReturn {
     lastStability,
     sequenceLength,
     handDetected,
+    isCapturing,
     error,
   };
 }

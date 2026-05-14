@@ -138,5 +138,6 @@ export interface UseWebSocketReturn {
   lastStability: number;
   sequenceLength: number;
   handDetected: boolean;
+  isCapturing: boolean;
   error: string | null;
 }

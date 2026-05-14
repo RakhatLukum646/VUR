@@ -13,7 +13,7 @@ vi.mock('../hooks/useSpeech', () => ({
 }));
 
 describe('TranslationPanel', () => {
-  it('shows guidance and low-confidence explanation', () => {
+  it('shows guidance and low-confidence badge', () => {
     useAppStore.setState({
       detectedSigns: ['A', 'B'],
       currentSentence: '',
@@ -30,6 +30,7 @@ describe('TranslationPanel', () => {
         stability={0.5}
         sequenceLength={2}
         handDetected
+        isCapturing={false}
       />
     );
 
@@ -37,8 +38,8 @@ describe('TranslationPanel', () => {
       screen.getByText('Move your hand closer to the camera.')
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Low confidence. Adjust framing, lighting, or hand shape.')
+      screen.getByText(/Low confidence/)
     ).toBeInTheDocument();
-    expect(screen.getByText('Buffered signs in current phrase: 2')).toBeInTheDocument();
+    expect(screen.getByText('Buffered signs: 2')).toBeInTheDocument();
   });
 });
