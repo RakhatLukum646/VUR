@@ -1,5 +1,7 @@
 import logging
 import smtplib
+import textwrap
+from urllib.parse import urlparse, urlunparse
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -7,25 +9,52 @@ from app.config import settings
 
 logger = logging.getLogger("auth_service")
 
+def _frontend_link(path: str) -> str:
+    raw_base = (settings.frontend_url or "").strip().rstrip("/")
+    if not raw_base:
+        raw_base = "http://localhost:5173"
+
+    parsed = urlparse(raw_base)
+    if not parsed.scheme:
+        parsed = urlparse(f"http://{raw_base}")
+
+    hostname = (parsed.hostname or "").lower()
+    port = parsed.port
+    is_localhost = hostname in {"localhost", "127.0.0.1"}
+
+    if is_localhost:
+        if port is None:
+            netloc = f"{hostname}:5173"
+            parsed = parsed._replace(netloc=netloc)
+
+        # If using the docker gateway TLS port, force https.
+        if parsed.port == 4443 and parsed.scheme != "https":
+            parsed = parsed._replace(scheme="https")
+
+    base = urlunparse(parsed).rstrip("/")
+    return f"{base}{path}"
+
 
 def send_verification_email(email: str, token: str):
-    verification_link = f"{settings.frontend_url}/verify-email?token={token}"
+    verification_link = _frontend_link(f"/verify-email?token={token}")
 
     subject = "Verify your email"
-    body = f"""
-    Hello,
+    body = textwrap.dedent(
+        f"""\
+        Hello,
 
-    Thank you for registering in VUR Translator.
+        Thank you for registering in SignZhan.
 
-    Please verify your email by clicking the link below:
+        Please verify your email by clicking the link below:
 
-    {verification_link}
+        <{verification_link}>
 
-    If you did not create this account, you can ignore this email.
-    """
+        If you did not create this account, you can ignore this email.
+        """
+    ).strip()
 
     msg = MIMEMultipart()
-    msg["From"] = f"VUR Translator <{settings.email_user}>"
+    msg["From"] = f"SignZhan <{settings.email_user}>"
     msg["To"] = email
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain", "utf-8"))
@@ -45,24 +74,26 @@ def send_verification_email(email: str, token: str):
 
 
 def send_password_reset_email(email: str, token: str):
-    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
+    reset_link = _frontend_link(f"/reset-password?token={token}")
 
     subject = "Reset your password"
-    body = f"""
-    Hello,
+    body = textwrap.dedent(
+        f"""\
+        Hello,
 
-    We received a request to reset your VUR Translator password.
+        We received a request to reset your SignZhan password.
 
-    Use the link below to set a new password:
+        Use the link below to set a new password:
 
-    {reset_link}
+        <{reset_link}>
 
-    This link expires in {settings.password_reset_expire_minutes} minutes.
-    If you did not request a reset, you can ignore this message.
-    """
+        This link expires in {settings.password_reset_expire_minutes} minutes.
+        If you did not request a reset, you can ignore this message.
+        """
+    ).strip()
 
     msg = MIMEMultipart()
-    msg["From"] = f"VUR Translator <{settings.email_user}>"
+    msg["From"] = f"SignZhan <{settings.email_user}>"
     msg["To"] = email
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain", "utf-8"))

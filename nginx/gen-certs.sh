@@ -22,7 +22,7 @@ openssl req -x509 -nodes -newkey rsa:2048 \
     -keyout "$CERT_DIR/server.key" \
     -out    "$CERT_DIR/server.crt" \
     -days   365 \
-    -subj   "/CN=localhost/O=VUR Dev/C=KZ" \
+    -subj   "/CN=localhost/O=SignZhan Dev/C=KZ" \
     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 
 echo "Certificates written to $CERT_DIR/"

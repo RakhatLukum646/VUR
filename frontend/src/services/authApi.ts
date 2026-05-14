@@ -22,6 +22,19 @@ interface ApiError {
   message?: string;
 }
 
+type AdminStatsResponse = {
+  total_users: number;
+  verified_users: number;
+  two_factor_enabled_users: number;
+  admin_users: number;
+};
+
+type AdminUsersResponse = {
+  users: User[];
+  limit: number;
+  offset: number;
+};
+
 async function parseJson<T>(response: Response): Promise<T> {
   if (response.status === 204) {
     return {} as T;
@@ -294,4 +307,30 @@ export async function regenerateRecoveryCodes(currentPassword: string) {
       body: JSON.stringify({ current_password: currentPassword }),
     }
   );
+}
+
+export async function getAdminStats() {
+  return requestWithSession<AdminStatsResponse>('/auth/admin/stats');
+}
+
+export async function listAdminUsers(limit = 50, offset = 0) {
+  const qs = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return requestWithSession<AdminUsersResponse>(`/auth/admin/users?${qs.toString()}`);
+}
+
+export async function setUserRole(userId: string, role: 'user' | 'admin') {
+  return requestWithSession<User>(`/auth/admin/users/${userId}/role`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function deleteUser(userId: string) {
+  return requestWithSession<MessageResponse>(`/auth/admin/users/${userId}`, {
+    method: 'DELETE',
+  });
 }

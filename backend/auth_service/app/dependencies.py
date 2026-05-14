@@ -50,3 +50,13 @@ async def get_current_verified_user(
         )
 
     return current_user
+
+
+async def get_current_admin_user(
+    current_user=Depends(get_current_verified_user),
+):
+    role = (current_user.get("role") or "").lower()
+    email = (current_user.get("email") or "").lower()
+    if role == "admin" or email in settings.admin_email_list:
+        return current_user
+    raise HTTPException(status_code=403, detail="Admin access required")

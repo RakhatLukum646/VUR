@@ -74,8 +74,9 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
               <AlertCircle className="w-12 h-12 mb-4 text-red-400" />
               <p className="text-center text-gray-300">{error}</p>
               <button
+                type="button"
                 onClick={startCamera}
-                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg transition-colors"
               >
                 Retry
               </button>
@@ -92,7 +93,14 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
           {isReady && isTranslating && (
             <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/50 px-3 py-1.5 rounded-full">
               <div className="w-3 h-3 bg-red-500 rounded-full recording-indicator" />
-              <span className="text-white text-sm font-medium">Recording</span>
+              <img
+                src="/SignZhan.png"
+                alt="SignZhan"
+                width={140}
+                height={32}
+                className="h-4 w-auto object-contain"
+                decoding="async"
+              />
             </div>
           )}
 

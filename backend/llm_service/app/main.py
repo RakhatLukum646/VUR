@@ -53,8 +53,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Sign Language LLM Service",
-    description="Natural language translation for sign language detection",
+    title="SignZhan LLM Service",
+    description="Natural language translation for SignZhan sign-language pipeline",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -109,7 +109,7 @@ Instrumentator().instrument(app).expose(app)
 @app.get("/")
 async def root():
     return {
-        "service": "Sign Language LLM Service",
+        "service": "SignZhan LLM Service",
         "version": "1.0.0",
         "status": "running",
         "docs": "/docs",

@@ -4,6 +4,7 @@ export interface User {
   email: string;
   is_verified?: boolean;
   two_factor_enabled?: boolean;
+  role?: 'user' | 'admin';
 }
 
 export interface LoginRequest {

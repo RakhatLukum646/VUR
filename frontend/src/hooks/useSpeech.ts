@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Language } from '../types';
 
 const LANGUAGE_BCP47: Record<Language, string> = {
@@ -7,102 +7,176 @@ const LANGUAGE_BCP47: Record<Language, string> = {
   kz: 'kk-KZ',
 };
 
-function normalizeLangTag(tag: string): string {
-  return tag.replace('_', '-').toLowerCase();
-}
+type SpeechBoundary = {
+  charIndex: number;
+  charLength: number;
+  name?: string;
+};
 
-function bestVoiceForLang(bcp47: string): SpeechSynthesisVoice | undefined {
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) {
-    return undefined;
+function appLanguageToBcp47(language: string): string {
+  if (language === 'en' || language === 'ru' || language === 'kz') {
+    return LANGUAGE_BCP47[language];
   }
-  const target = normalizeLangTag(bcp47);
-  const primary = target.split('-')[0] ?? target;
-
-  const exact = voices.find((v) => normalizeLangTag(v.lang) === target);
-  if (exact) {
-    return exact;
-  }
-
-  const withPrimary = voices.find((v) =>
-    normalizeLangTag(v.lang).startsWith(`${primary}-`),
-  );
-  if (withPrimary) {
-    return withPrimary;
-  }
-
-  return voices.find((v) => normalizeLangTag(v.lang).startsWith(primary));
+  return 'ru-RU';
 }
 
 export function useSpeech() {
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isSupported] = useState(
     () => typeof window !== 'undefined' && 'speechSynthesis' in window,
   );
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      return localStorage.getItem('tts.voiceURI');
+    } catch {
+      return null;
+    }
+  });
+  const [activeBoundary, setActiveBoundary] = useState<SpeechBoundary | null>(null);
+  const [speakingText, setSpeakingText] = useState<string>('');
+  const [activeVoiceURI, setActiveVoiceURI] = useState<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     if (!isSupported) {
       return;
     }
-    const primeVoices = () => {
-      window.speechSynthesis.getVoices();
-    };
-    primeVoices();
-    window.speechSynthesis.addEventListener('voiceschanged', primeVoices);
+    const updateVoices = () => setVoices(window.speechSynthesis.getVoices());
+
+    updateVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', updateVoices);
+
     return () => {
-      window.speechSynthesis.removeEventListener('voiceschanged', primeVoices);
+      window.speechSynthesis.removeEventListener('voiceschanged', updateVoices);
     };
   }, [isSupported]);
 
-  const speakWithVoices = useCallback((utterance: SpeechSynthesisUtterance) => {
-    const voice = bestVoiceForLang(utterance.lang);
-    if (voice) {
-      utterance.voice = voice;
+  useEffect(() => {
+    try {
+      if (selectedVoiceURI) {
+        localStorage.setItem('tts.voiceURI', selectedVoiceURI);
+      } else {
+        localStorage.removeItem('tts.voiceURI');
+      }
+    } catch {
+      // Ignore storage failures (private mode / blocked storage).
     }
-    utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [selectedVoiceURI]);
+
+  const autoVoiceForLanguage = useCallback(
+    (language: string) => {
+      const target = appLanguageToBcp47(language);
+      const targetPrefix = target.split('-')[0]?.toLowerCase() ?? '';
+
+      const exact = voices.find((v) => v.lang.toLowerCase() === target.toLowerCase());
+      if (exact) {
+        return exact;
+      }
+
+      const prefix = voices.find(
+        (v) =>
+          v.lang.toLowerCase().startsWith(`${targetPrefix}-`) ||
+          v.lang.toLowerCase() === targetPrefix,
+      );
+      if (prefix) {
+        return prefix;
+      }
+
+      return voices[0] ?? null;
+    },
+    [voices],
+  );
+
+  const selectedVoice = useMemo(() => {
+    if (!selectedVoiceURI) {
+      return null;
+    }
+    return voices.find((v) => v.voiceURI === selectedVoiceURI) ?? null;
+  }, [selectedVoiceURI, voices]);
+
+  const activeVoice = useMemo(() => {
+    if (!activeVoiceURI) {
+      return null;
+    }
+    return voices.find((v) => v.voiceURI === activeVoiceURI) ?? null;
+  }, [activeVoiceURI, voices]);
 
   const speak = useCallback(
-    (text: string, language: Language = 'ru') => {
+    (text: string, language: Language | string = 'ru') => {
       if (!isSupported || !text.trim()) {
         return;
       }
 
       window.speechSynthesis.cancel();
+      setActiveBoundary(null);
+      setActiveVoiceURI(null);
 
-      const bcp47 = LANGUAGE_BCP47[language];
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = bcp47;
+      utterance.lang = appLanguageToBcp47(language);
       utterance.rate = 0.95;
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      const chosen = selectedVoice ?? autoVoiceForLanguage(language);
+      if (chosen) {
+        utterance.voice = chosen;
+      }
 
-      const start = () => {
-        if (window.speechSynthesis.getVoices().length > 0) {
-          speakWithVoices(utterance);
-          return;
-        }
-        const onVoicesChanged = () => {
-          window.speechSynthesis.removeEventListener(
-            'voiceschanged',
-            onVoicesChanged,
-          );
-          speakWithVoices(utterance);
-        };
-        window.speechSynthesis.addEventListener(
-          'voiceschanged',
-          onVoicesChanged,
-        );
-        window.speechSynthesis.getVoices();
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setIsPaused(false);
+        setSpeakingText(text);
+        setActiveVoiceURI(utterance.voice?.voiceURI ?? null);
+      };
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setActiveBoundary(null);
+        setActiveVoiceURI(null);
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setActiveBoundary(null);
+        setActiveVoiceURI(null);
+      };
+      utterance.onboundary = (event) => {
+        setActiveBoundary({
+          charIndex: event.charIndex,
+          charLength: typeof event.charLength === 'number' ? event.charLength : 0,
+          name: event.name,
+        });
       };
 
-      queueMicrotask(start);
+      utteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
     },
-    [isSupported, speakWithVoices],
+    [autoVoiceForLanguage, isSupported, selectedVoice],
   );
+
+  const pause = useCallback(() => {
+    if (!isSupported) {
+      return;
+    }
+    if (!window.speechSynthesis.speaking) {
+      return;
+    }
+    window.speechSynthesis.pause();
+    setIsPaused(true);
+  }, [isSupported]);
+
+  const resume = useCallback(() => {
+    if (!isSupported) {
+      return;
+    }
+    if (!window.speechSynthesis.paused) {
+      return;
+    }
+    window.speechSynthesis.resume();
+    setIsPaused(false);
+  }, [isSupported]);
 
   const stop = useCallback(() => {
     if (!isSupported) {
@@ -110,7 +184,24 @@ export function useSpeech() {
     }
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
+    setIsPaused(false);
+    setActiveBoundary(null);
+    setActiveVoiceURI(null);
   }, [isSupported]);
 
-  return { speak, stop, isSpeaking, isSupported };
+  return {
+    speak,
+    stop,
+    pause,
+    resume,
+    isSpeaking,
+    isPaused,
+    isSupported,
+    voices,
+    selectedVoiceURI,
+    setSelectedVoiceURI,
+    activeBoundary,
+    speakingText,
+    activeVoice,
+  };
 }

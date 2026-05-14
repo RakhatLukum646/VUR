@@ -1,8 +1,8 @@
-# AI-Powered Sign Language Recognition - Development Plan
+# SignZhan — Development Plan (AI sign language recognition)
 
 ## 📋 Project Overview
 
-**Topic:** AI-Powered Sign Language Recognition for Real-Time Translation
+**Topic:** SignZhan — AI-powered sign language recognition for real-time translation
 **Team:** 3 Developers
 - **Ulzhan** - Frontend Developer (React)
 - **Vlad** - Backend Developer (Python, MediaPipe)
@@ -515,5 +515,5 @@ redis==5.0.1  # optional for context
 
 ---
 
-*Plan created for AI Sign Language Recognition Team*
+*Plan created for the SignZhan team*
 *Last updated: 2026-02-08*

@@ -1,11 +1,11 @@
-# Sign Language Translator - Makefile
+# Signzhan - Makefile
 # Easy commands to build and run the project
 
 .PHONY: help install dev build clean docker-up docker-down
 
 # Default target
 help:
-	@echo "Sign Language Translator - Available Commands"
+	@echo "Signzhan - Available Commands"
 	@echo ""
 	@echo "  make install     - Install all dependencies"
 	@echo "  make dev         - Start all services in development mode"

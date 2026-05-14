@@ -42,8 +42,8 @@ export default function AuthBootstrap({ children }: Props) {
 
   if (!isBootstrapped) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-5 text-sm text-gray-600 shadow-sm">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center px-4">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-5 text-sm text-gray-600 dark:text-gray-300 shadow-sm">
           Checking session…
         </div>
       </div>

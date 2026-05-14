@@ -12,7 +12,7 @@ def generate_2fa_secret() -> str:
 
 def get_totp_uri(email: str, secret: str) -> str:
     totp = pyotp.TOTP(secret)
-    return totp.provisioning_uri(name=email, issuer_name="VUR Translator")
+    return totp.provisioning_uri(name=email, issuer_name="SignZhan")
 
 
 def verify_2fa_code(secret: str, code: str) -> bool:

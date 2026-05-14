@@ -4,7 +4,7 @@ These are static-analysis tests — no Docker daemon required.
 """
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[3]  # /home/rakhat/VUR
+BASE_DIR = Path(__file__).resolve().parents[3]
 
 
 def _read_dockerfile(relative_path: str) -> str:

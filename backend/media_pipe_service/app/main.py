@@ -37,8 +37,8 @@ def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
 
     app = FastAPI(
-        title="MediaPipe Sign Language Service",
-        description="Real-time hand gesture detection for sign language translation",
+        title="SignZhan MediaPipe Service",
+        description="Real-time hand gesture detection for SignZhan",
         version="1.0.0",
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,

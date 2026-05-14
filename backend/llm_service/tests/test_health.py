@@ -50,5 +50,5 @@ async def test_root_endpoint(client):
     assert response.status_code == 200
     assert response.headers["x-request-id"]
     data = response.json()
-    assert data["service"] == "Sign Language LLM Service"
+    assert data["service"] == "SignZhan LLM Service"
     assert data["status"] == "running"

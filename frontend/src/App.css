@@ -9,15 +9,6 @@ button:active {
   transform: scale(0.98);
 }
 
-/* Card hover effects */
-.bg-white {
-  transition: box-shadow 0.2s ease-in-out;
-}
-
-.bg-white:hover {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-}
-
 /* Animation for new detected signs */
 @keyframes slideIn {
   from {

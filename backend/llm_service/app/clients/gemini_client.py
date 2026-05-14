@@ -5,7 +5,7 @@ from typing import List, Optional
 from google import genai
 from google.genai import types
 
-from app.config import get_settings, SYSTEM_PROMPT
+from app.config import get_settings, LANGUAGE_SYSTEM_PROMPTS
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +44,14 @@ class GeminiClient:
             return self._fallback_translate(sign_sequence, context)
 
         prompt = self._build_prompt(sign_sequence, context, language)
+        system_prompt = LANGUAGE_SYSTEM_PROMPTS.get(language, LANGUAGE_SYSTEM_PROMPTS["ru"])
 
         try:
             response = await self._model.aio.models.generate_content(
                 model=self.settings.GEMINI_MODEL,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
+                    system_instruction=system_prompt,
                     temperature=0.2,
                     max_output_tokens=128,
                 ),
@@ -73,29 +74,17 @@ class GeminiClient:
         context: Optional[str],
         language: str,
     ) -> str:
-        lang_names = {"en": "English", "ru": "Russian", "kz": "Kazakh"}
-        lang_name = lang_names.get(language, "Russian")
-
-        # Detect whether the sequence looks like fingerspelling (single chars)
-        # or whole-word glosses, and hint the model accordingly.
         all_single_chars = all(len(s) == 1 for s in sign_sequence)
         if all_single_chars:
             signs_repr = "".join(sign_sequence)
-            input_type_hint = (
-                f"Дактильная последовательность (буква за буквой): '{signs_repr}' "
-                f"(каждый символ — отдельный жест)"
-            )
+            input_line = f"Дактиль: '{signs_repr}'"
         else:
             signs_repr = " | ".join(sign_sequence)
-            input_type_hint = f"Жестовые глоссы: {signs_repr}"
+            input_line = f"Глоссы РЖЯ: {signs_repr}"
 
-        prompt = f"{input_type_hint}\n"
+        prompt = input_line
         if context:
-            prompt += f"Предыдущий контекст разговора: {context}\n"
-        prompt += (
-            f"\nПреобразуй это в грамматически правильное предложение на {lang_name}. "
-            "Выведи только готовое предложение, без пояснений."
-        )
+            prompt += f"\nКонтекст предыдущей реплики: {context}"
         return prompt
 
     def _fallback_translate(

@@ -1,4 +1,4 @@
-# API Contracts - Sign Language Translator
+# API Contracts — SignZhan
 
 ## Overview
 This document defines all API contracts between services.
