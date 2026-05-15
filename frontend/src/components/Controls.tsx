@@ -2,6 +2,7 @@ import { Play, Square, RotateCcw, Mic, Globe } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { LANGUAGE_OPTIONS } from '../types';
 import { MenuSelect } from './MenuSelect';
+import { useUiText } from '../i18n';
 
 interface ControlsProps {
   onStart: () => void;
@@ -17,6 +18,7 @@ export const Controls = ({
   variant = 'card',
 }: ControlsProps) => {
   const { isTranslating, connectionStatus, detectedSigns, language, setLanguage } = useAppStore();
+  const t = useUiText();
   const languageOptions = LANGUAGE_OPTIONS.map((opt) => ({
     value: opt.value,
     label: (
@@ -44,13 +46,13 @@ export const Controls = ({
   const getStatusText = () => {
     switch (connectionStatus) {
       case 'connected':
-        return 'Connected';
+        return t.status.connected;
       case 'connecting':
-        return 'Connecting...';
+        return t.status.connecting;
       case 'error':
-        return 'Error';
+        return t.status.error;
       default:
-        return 'Disconnected';
+        return t.status.disconnected;
     }
   };
 
@@ -72,7 +74,7 @@ export const Controls = ({
           <div>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{getStatusText()}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              WebSocket {connectionStatus === 'connected' ? 'active' : 'inactive'}
+              {connectionStatus === 'connected' ? t.status.websocketActive : t.status.websocketInactive}
             </p>
           </div>
         </div>
@@ -86,7 +88,7 @@ export const Controls = ({
               className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors shadow-md"
             >
               <Play className="w-5 h-5" />
-              Start Translation
+              {t.controls.start}
             </button>
           ) : (
             <button
@@ -94,7 +96,7 @@ export const Controls = ({
               className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
             >
               <Square className="w-5 h-5" />
-              Stop
+              {t.controls.stop}
             </button>
           )}
 
@@ -104,7 +106,7 @@ export const Controls = ({
             className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-400 text-gray-700 dark:text-gray-200 rounded-lg font-medium transition-colors"
           >
             <RotateCcw className="w-5 h-5" />
-            Clear
+            {t.controls.clear}
           </button>
         </div>
 
@@ -116,7 +118,7 @@ export const Controls = ({
             <MenuSelect
               value={language}
               options={languageOptions}
-              ariaLabel="Translation language"
+              ariaLabel={t.translationLanguage}
               onChange={(nextValue) => {
                 const next = LANGUAGE_OPTIONS.find((opt) => opt.value === nextValue);
                 if (next) setLanguage(next.value);
@@ -129,13 +131,13 @@ export const Controls = ({
 
           <div className="flex items-center gap-2">
             <Mic className="w-4 h-4 text-blue-500" />
-            <span>{detectedSigns.length} signs</span>
+            <span>{detectedSigns.length} {t.controls.signs}</span>
           </div>
           
           {isTranslating && (
             <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="font-medium">Translating...</span>
+              <span className="font-medium">{t.controls.translating}</span>
             </div>
           )}
         </div>
@@ -144,8 +146,7 @@ export const Controls = ({
       {/* Help Text */}
       <div className={helpTextClassName}>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          <span className="font-medium">Tip:</span> Position your hand clearly in front of the camera. 
-          The system recognizes Russian Sign Language (RSL) gestures. Hold each sign for ~1 second, then pause between words.
+          <span className="font-medium">{t.controls.tipLabel}</span> {t.controls.tip}
         </p>
       </div>
     </div>

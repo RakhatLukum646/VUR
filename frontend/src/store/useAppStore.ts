@@ -16,6 +16,7 @@ export const useAppStore = create<AppState>()(
       currentSentence: '',
       confidence: 0,
       language: 'ru',
+      interfaceLanguage: 'en',
 
       // History
       translationHistory: [],
@@ -47,6 +48,8 @@ export const useAppStore = create<AppState>()(
 
       setLanguage: (language) => set({ language }),
 
+      setInterfaceLanguage: (interfaceLanguage) => set({ interfaceLanguage }),
+
       clearSession: () => set({
         detectedSigns: [],
         currentSentence: '',
@@ -60,7 +63,10 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'app-storage',
-      partialize: (state) => ({ language: state.language }),
+      partialize: (state) => ({
+        language: state.language,
+        interfaceLanguage: state.interfaceLanguage,
+      }),
     }
   )
 );

@@ -3,6 +3,7 @@ import { Video, VideoOff, AlertCircle } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
 import { LandmarkOverlay } from './LandmarkOverlay';
 import type { Landmark } from '../types';
+import { useUiText } from '../i18n';
 
 interface CameraProps {
   isTranslating: boolean;
@@ -18,6 +19,7 @@ export interface CameraRef {
 export const Camera = forwardRef<CameraRef, CameraProps>(
   ({ isTranslating, landmarks }, ref) => {
     const { videoRef, canvasRef, isReady, error, startCamera, stopCamera, captureFrame } = useCamera();
+    const t = useUiText();
     const containerRef = useRef<HTMLDivElement>(null);
     const [overlaySize, setOverlaySize] = useState({ width: 640, height: 480 });
 
@@ -78,7 +80,7 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
                 onClick={startCamera}
                 className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg transition-colors"
               >
-                Retry
+                {t.camera.retry}
               </button>
             </div>
           )}
@@ -86,7 +88,7 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
           {!error && !isReady && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
               <Video className="w-12 h-12 mb-4 text-gray-400 animate-pulse" />
-              <p className="text-gray-400">Initializing camera...</p>
+              <p className="text-gray-400">{t.camera.initializing}</p>
             </div>
           )}
 
@@ -108,7 +110,7 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
             <div className="absolute bottom-4 left-4 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500" />
               <span className="text-white text-sm bg-black/50 px-2 py-1 rounded">
-                Camera ready
+                {t.camera.ready}
               </span>
             </div>
           )}
@@ -124,11 +126,11 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
               <VideoOff className="w-4 h-4 text-red-400" />
             )}
             <span className="text-sm">
-              {isReady ? 'Camera active' : 'Camera inactive'}
+              {isReady ? t.camera.active : t.camera.inactive}
             </span>
           </div>
           <div className="text-xs text-gray-500">
-            Resolution: 640x480
+            {t.camera.resolution}: 640x480
           </div>
         </div>
       </div>

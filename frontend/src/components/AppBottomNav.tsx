@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { BookMarked, Languages } from 'lucide-react';
+import { useUiText } from '../i18n';
 
 function navLinkClassName(isActive: boolean): string {
   return [
@@ -11,10 +12,12 @@ function navLinkClassName(isActive: boolean): string {
 }
 
 export function AppBottomNav() {
+  const t = useUiText();
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200/80 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
-      aria-label="Основная навигация"
+      aria-label="Primary navigation"
     >
       <div className="max-w-7xl mx-auto flex items-stretch pb-[max(0.35rem,env(safe-area-inset-bottom))]">
         <NavLink
@@ -23,7 +26,7 @@ export function AppBottomNav() {
           className={({ isActive }) => navLinkClassName(isActive)}
         >
           <Languages className="w-6 h-6 shrink-0" aria-hidden />
-          <span className="text-xs font-medium text-center leading-tight">Переводчик</span>
+          <span className="text-xs font-medium text-center leading-tight">{t.nav.translator}</span>
         </NavLink>
         <NavLink
           to="/resources"
@@ -31,7 +34,7 @@ export function AppBottomNav() {
         >
           <BookMarked className="w-6 h-6 shrink-0" aria-hidden />
           <span className="text-xs font-medium text-center leading-tight px-0.5">
-            Ресурсы и материалы
+            {t.nav.resources}
           </span>
         </NavLink>
       </div>

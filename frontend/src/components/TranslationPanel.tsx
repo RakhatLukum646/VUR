@@ -13,6 +13,7 @@ import { useSpeech } from '../hooks/useSpeech';
 import { useAppStore } from '../store/useAppStore';
 import { translateSigns } from '../services/api';
 import { MenuSelect } from './MenuSelect';
+import { useUiText } from '../i18n';
 
 interface TranslationPanelProps {
   lastSign: string | null;
@@ -24,20 +25,29 @@ interface TranslationPanelProps {
   handDetected: boolean;
 }
 
-function getConfidenceExplanation(confidence: number, handDetected: boolean) {
+function getConfidenceExplanation(
+  confidence: number,
+  handDetected: boolean,
+  labels: {
+    noHand: string;
+    highConfidence: string;
+    moderateConfidence: string;
+    lowConfidence: string;
+  }
+) {
   if (!handDetected) {
-    return 'No hand detected yet.';
+    return labels.noHand;
   }
 
   if (confidence >= 0.85) {
-    return 'High confidence. The hand shape looks consistent.';
+    return labels.highConfidence;
   }
 
   if (confidence >= 0.65) {
-    return 'Moderate confidence. Hold the gesture a bit longer.';
+    return labels.moderateConfidence;
   }
 
-  return 'Low confidence. Adjust framing, lighting, or hand shape.';
+  return labels.lowConfidence;
 }
 
 type TextToken = {
@@ -70,6 +80,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   sequenceLength,
   handDetected,
 }) => {
+  const t = useUiText();
   const { currentSentence, detectedSigns, language, sessionId, setCurrentSentence, addToHistory, translationHistory } =
     useAppStore();
   const {
@@ -132,7 +143,8 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   const recentHistory = translationHistory.slice(-5).reverse();
   const confidenceExplanation = getConfidenceExplanation(
     confidence,
-    handDetected
+    handDetected,
+    t.panel
   );
 
   const highlightRange = useMemo(() => {
@@ -184,7 +196,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-800 px-6 py-4">
         <h2 className="text-white font-semibold flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
-          Translation Panel
+          {t.panel.title}
         </h2>
       </div>
 
@@ -193,7 +205,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
           <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
             <Activity className="w-4 h-4" />
             <span className="text-sm font-medium uppercase tracking-wide">
-              Current Detection
+              {t.panel.currentDetection}
             </span>
           </div>
 
@@ -204,7 +216,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
             <div className="flex-1 space-y-3">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Classifier confidence</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{t.panel.classifierConfidence}</span>
                   <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-blue-500 transition-all duration-300"
@@ -222,7 +234,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                 <div className="rounded-lg bg-white dark:bg-gray-800 px-3 py-2">
                   <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                     <Gauge className="w-3.5 h-3.5" />
-                    Frame quality
+                    {t.panel.frameQuality}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
@@ -240,7 +252,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                 <div className="rounded-lg bg-white dark:bg-gray-800 px-3 py-2">
                   <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                     <Eye className="w-3.5 h-3.5" />
-                    Stability
+                    {t.panel.stability}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
@@ -260,10 +272,10 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
 
           <div className="rounded-lg border border-blue-100 dark:border-blue-900 bg-white dark:bg-gray-800 px-4 py-3">
             <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-              {guidance ?? 'Show one hand in the frame to start detection.'}
+              {guidance ?? t.statusBar.defaultGuidance}
             </p>
             <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
-              Buffered signs in current phrase: {sequenceLength}
+              {t.panel.bufferedSigns}: {sequenceLength}
             </p>
           </div>
         </div>
@@ -271,7 +283,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
         <div>
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
-            Detected Signs
+            {t.panel.detectedSigns}
           </h3>
           <div className="bg-gray-50 dark:bg-gray-800/80 rounded-lg p-4 min-h-[80px]">
             {signsDisplay ? (
@@ -279,18 +291,18 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                 {signsDisplay}
               </p>
             ) : (
-              <p className="text-gray-400 dark:text-gray-500 italic">No signs detected yet...</p>
+              <p className="text-gray-400 dark:text-gray-500 italic">{t.panel.noSignsDetected}</p>
             )}
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {detectedSigns.length} sign{detectedSigns.length !== 1 ? 's' : ''} detected
+            {detectedSigns.length} {t.panel.signsDetected}
           </p>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              Translated Sentence
+              {t.panel.translatedSentence}
             </h3>
             {isSupported && currentSentence && (
               <div className="flex items-center gap-2">
@@ -299,12 +311,12 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                     <Volume2 className="w-4 h-4 shrink-0 opacity-80 text-blue-600 dark:text-blue-400" aria-hidden />
                     <MenuSelect
                       value={selectedVoiceURI ?? ''}
-                      ariaLabel="Voice"
+                      ariaLabel={t.panel.voice}
                       options={[
                         {
                           value: '',
-                          label: 'Auto voice',
-                          textLabel: 'Auto voice',
+                          label: t.panel.autoVoice,
+                          textLabel: t.panel.autoVoice,
                         },
                         ...visibleVoices.map((v) => ({
                           value: v.voiceURI,
@@ -326,41 +338,41 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                     type="button"
                     onClick={() => setShowAllVoices((v) => !v)}
                     className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors"
-                    title={showAllVoices ? 'Show fewer voices' : 'Show all voices'}
+                    title={showAllVoices ? t.panel.showFewerVoices : t.panel.showAllVoices}
                   >
-                    {showAllVoices ? 'Show less' : 'Show all'}
+                    {showAllVoices ? t.panel.showLess : t.panel.showAll}
                   </button>
                 )}
                 {activeVoice && (
                   <span className="hidden lg:inline text-xs text-gray-500 dark:text-gray-400">
-                    Reading: {activeVoice.name} ({activeVoice.lang})
+                    {t.panel.reading}: {activeVoice.name} ({activeVoice.lang})
                   </span>
                 )}
                 {translationHistory.length > 0 && (
                   <button
                     onClick={handleRetranslate}
                     disabled={retranslating}
-                    title="Re-translate last phrase with current language"
+                    title={t.panel.retranslateTitle}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 dark:border-emerald-900 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 disabled:opacity-60 transition-colors"
                   >
-                    {retranslating ? 'Translating…' : 'Re-translate'}
+                    {retranslating ? t.panel.retranslating : t.panel.retranslate}
                   </button>
                 )}
                 {isSpeaking && activeTextKey === 'current' && (
                   <button
                     onClick={() => (isPaused ? resume() : pause())}
-                    title={isPaused ? 'Resume' : 'Pause'}
+                    title={isPaused ? t.panel.resume : t.panel.pause}
                     className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
-                    {isPaused ? 'Resume' : 'Pause'}
+                    {isPaused ? t.panel.resume : t.panel.pause}
                   </button>
                 )}
                 <button
                   onClick={handleSpeakCurrent}
                   title={
                     isSpeaking && activeTextKey === 'current'
-                      ? 'Stop speaking'
-                      : 'Read aloud'
+                      ? t.panel.stopSpeaking
+                      : t.panel.readAloud
                   }
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     isSpeaking && activeTextKey === 'current'
@@ -371,12 +383,12 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                   {isSpeaking && activeTextKey === 'current' ? (
                     <>
                       <VolumeX className="w-3.5 h-3.5" />
-                      Stop
+                      {t.panel.stop}
                     </>
                   ) : (
                     <>
                       <Volume2 className="w-3.5 h-3.5" />
-                      Read aloud
+                      {t.panel.readAloud}
                     </>
                   )}
                 </button>
@@ -409,7 +421,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               </p>
             ) : (
               <p className="text-gray-400 dark:text-gray-500 italic">
-                Translation will appear here when you complete a sign sequence...
+                {t.panel.translationPlaceholder}
               </p>
             )}
           </div>
@@ -419,7 +431,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
           <div>
             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
               <History className="w-4 h-4" />
-              Recent History
+              {t.panel.recentHistory}
             </h3>
             <div className="space-y-2">
               {recentHistory.map((item, index) => (
@@ -442,8 +454,8 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                         setActiveTextKey(index);
                         speak(item.translation, language);
                       }}
-                      title="Read aloud"
-                      aria-label="Read aloud"
+                      title={t.panel.readAloud}
+                      aria-label={t.panel.readAloud}
                       className="mt-0.5 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors flex-shrink-0"
                     >
                       <Volume2 className="w-3.5 h-3.5" />

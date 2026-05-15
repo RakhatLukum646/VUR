@@ -8,6 +8,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { checkLLMHealth, checkMediaPipeHealth } from '../services/api';
+import { useUiText } from '../i18n';
 
 interface ServiceStatus {
   name: string;
@@ -21,10 +22,10 @@ interface StatusBarProps {
   variant?: 'card' | 'embedded';
 }
 
-function getReadinessTone(frameQuality: number) {
+function getReadinessTone(frameQuality: number, labels: { strong: string; warming: string; needsAdjustment: string }) {
   if (frameQuality >= 0.85) {
     return {
-      label: 'Recognition strong',
+      label: labels.strong,
       className:
         'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
     };
@@ -32,14 +33,14 @@ function getReadinessTone(frameQuality: number) {
 
   if (frameQuality >= 0.55) {
     return {
-      label: 'Recognition warming up',
+      label: labels.warming,
       className:
         'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200',
     };
   }
 
   return {
-    label: 'Recognition needs adjustment',
+    label: labels.needsAdjustment,
     className:
       'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
   };
@@ -50,6 +51,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   frameQuality,
   variant = 'card',
 }) => {
+  const t = useUiText();
   const [services, setServices] = useState<ServiceStatus[]>([
     { name: 'MediaPipe', isUp: false, isChecking: true },
     { name: 'LLM Service', isUp: false, isChecking: true },
@@ -103,7 +105,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   }, []);
 
   const allUp = services.every((service) => service.isUp);
-  const readiness = getReadinessTone(frameQuality);
+  const readiness = getReadinessTone(frameQuality, t.statusBar);
 
   const containerClassName =
     variant === 'embedded'
@@ -119,7 +121,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Server className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <span className="font-semibold text-gray-800 dark:text-gray-100">Service Status</span>
+          <span className="font-semibold text-gray-800 dark:text-gray-100">{t.statusBar.title}</span>
         </div>
 
         <div className="flex items-center gap-6">
@@ -139,7 +141,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                     : 'text-red-700 dark:text-red-400'
                 }`}
               >
-                {service.name}
+                {service.name === 'LLM Service' ? t.statusBar.llmService : service.name}
               </span>
             </div>
           ))}
@@ -150,14 +152,14 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             <>
               <Wifi className="w-4 h-4 text-green-500" />
               <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                All Services Ready
+                {t.statusBar.allReady}
               </span>
             </>
           ) : (
             <>
               <WifiOff className="w-4 h-4 text-red-500" />
               <span className="text-sm font-medium text-red-700 dark:text-red-400">
-                Some Services Down
+                {t.statusBar.someDown}
               </span>
             </>
           )}
@@ -178,7 +180,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             {readiness.label}
           </span>
           <span className="text-xs text-gray-600 dark:text-gray-300">
-            {detectionGuidance ?? 'Show one hand in the frame to start detection.'}
+            {detectionGuidance ?? t.statusBar.defaultGuidance}
           </span>
         </div>
       </div>

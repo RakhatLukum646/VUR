@@ -1,5 +1,7 @@
 import { ArrowLeft, Github, LogOut, Shield, UserCircle } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useUiText } from '../i18n';
+import { InterfaceLanguageSelect } from './InterfaceLanguageSelect';
 import { ThemeControls } from './ThemeControls';
 
 type AppHeaderProps = {
@@ -20,6 +22,7 @@ export function AppHeader({
   const isOnProfile = location.pathname === '/profile';
   const isAuthShell = variant === 'auth';
   const logoSizeClassName = isAuthShell ? 'h-10 w-10 sm:h-11 sm:w-11' : 'h-11 w-11 sm:h-12 sm:w-12';
+  const t = useUiText();
 
   return (
     <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -44,12 +47,13 @@ export function AppHeader({
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-snug">
-                Real-Time Sign Language Translation
+                {t.nav.tagline}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 sm:justify-end">
+            <InterfaceLanguageSelect />
             <ThemeControls />
 
             {!isAuthShell && isOnProfile && (
@@ -58,7 +62,7 @@ export function AppHeader({
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-200"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Back to translator</span>
+                <span className="hidden sm:inline text-sm">{t.nav.backToTranslator}</span>
               </Link>
             )}
             <a
@@ -68,7 +72,7 @@ export function AppHeader({
               className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               <Github className="w-5 h-5" />
-              <span className="hidden sm:inline">GitHub</span>
+              <span className="hidden sm:inline">{t.nav.github}</span>
             </a>
 
             {!isAuthShell && userRole === 'admin' && (
@@ -77,7 +81,7 @@ export function AppHeader({
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 hover:bg-indigo-100/70 dark:hover:bg-indigo-950/50 transition-colors text-indigo-800 dark:text-indigo-200"
               >
                 <Shield className="w-4 h-4" />
-                <span className="hidden md:inline text-sm">Admin</span>
+                <span className="hidden md:inline text-sm">{t.nav.admin}</span>
               </Link>
             )}
 
@@ -89,7 +93,7 @@ export function AppHeader({
               >
                 <UserCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 <span className="hidden md:inline text-sm text-gray-700 dark:text-gray-200">
-                  {userName || 'Profile'}
+                  {userName || t.nav.profile}
                 </span>
               </button>
             )}
@@ -101,7 +105,7 @@ export function AppHeader({
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-red-50 dark:hover:bg-red-950/40 hover:border-red-200 dark:hover:border-red-800 transition-colors text-gray-700 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-400"
               >
                 <LogOut className="w-4 h-4" />
-                <span className="hidden md:inline text-sm">Logout</span>
+                <span className="hidden md:inline text-sm">{t.nav.logout}</span>
               </button>
             )}
           </div>

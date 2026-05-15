@@ -1,16 +1,10 @@
-import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { ExternalLink, PlayCircle } from 'lucide-react';
+import { useUiText } from '../i18n';
+import { EasySignsSection } from '../components/EasySignsSection';
 
-const YOUTUBE_LESSONS: { id: string; label: string }[] = [
-  { id: 'FAkuz-g8S4g', label: 'Урок 1' },
-  { id: 'EhZ7fXpuInQ', label: 'Урок 2' },
-  { id: 'e6YaTJKUFcw', label: 'Урок 3' },
-  { id: 'Dm338ycIZSE', label: 'Урок 4' },
-  { id: 'JTdUH6TQjK4', label: 'Урок 5' },
-];
+const YOUTUBE_LESSONS = ['FAkuz-g8S4g', 'EhZ7fXpuInQ', 'e6YaTJKUFcw', 'Dm338ycIZSE', 'JTdUH6TQjK4'];
 
-/** Добавьте файлы в `frontend/public/resources-logos/` и укажите путь, например `/resources-logos/spreadthesign.png` — иначе показывается иконка сайта (favicon). */
 type SiteEntry = {
   href: string;
   title: string;
@@ -18,30 +12,6 @@ type SiteEntry = {
   summary: string;
   logoSrc?: string;
 };
-
-const SITE_LINKS: SiteEntry[] = [
-  {
-    href: 'https://spreadthesign.ru/',
-    title: 'Spread The Sign (RU)',
-    subtitle: 'spreadthesign.ru · словарь РЖЯ',
-    summary:
-      'Некоммерческий словарь русского жестового языка от студенческой команды ПИН-КОД: доступ к жестам после блокировки зарубежного сервиса на территории России. Удобно смотреть видео жестов и описания; для части лексики есть тренировка с камерой и распознаванием показанного жеста.',
-  },
-  {
-    href: 'https://surdo.media/',
-    title: 'Surdo.media',
-    subtitle: 'surdo.media · теория и практика РЖЯ',
-    summary:
-      'Материалы о русском жестовом языке: история развития в России и в мире, роль РЖЯ в общении и отличие от «жестового русского». Подходит тем, кто хочет понять язык глубже, чем отдельные жесты — контекст культуры глухих и осмысленное общение.',
-  },
-  {
-    href: 'https://signlang.ru/studyrsl/lessons1-11/',
-    title: 'Лаборатория лингвистики ЖЯ',
-    subtitle: 'signlang.ru · курс «studyrsl»',
-    summary:
-      'Структурированный учебный курс по РЖЯ: уроки с 1 по 11, материалы лаборатории лингвистики жестового языка. Можно проходить последовательно и сочетать с видеоуроками ниже и практикой в нашем переводчике.',
-  },
-];
 
 function faviconForUrl(href: string): string {
   try {
@@ -91,11 +61,11 @@ function SiteLogo({
   );
 }
 
-function SiteCard({ entry }: { entry: SiteEntry }) {
+function SiteCard({ entry, openSite }: { entry: SiteEntry; openSite: string }) {
   const { href, title, subtitle, summary, logoSrc } = entry;
 
   return (
-    <article className="flex h-full flex-col rounded-2xl border border-gray-200/80 bg-white/90 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/70">
+    <article className="flex h-full flex-col rounded-xl border border-gray-200/80 bg-white/90 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/70">
       <div className="flex gap-4 border-b border-gray-100 p-5 dark:border-gray-700/80">
         <SiteLogo href={href} logoSrc={logoSrc} title={title} />
         <div className="min-w-0 flex-1">
@@ -116,14 +86,14 @@ function SiteCard({ entry }: { entry: SiteEntry }) {
           className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
         >
           <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
-          Открыть сайт
+          {openSite}
         </a>
       </div>
     </article>
   );
 }
 
-function YouTubeLessonCard({ videoId, title }: { videoId: string; title: string }) {
+function YouTubeLessonCard({ videoId, title, meta }: { videoId: string; title: string; meta: string }) {
   const href = `https://www.youtube.com/watch?v=${videoId}`;
   const thumb = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
 
@@ -152,7 +122,7 @@ function YouTubeLessonCard({ videoId, title }: { videoId: string; title: string 
         />
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{title}</p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">YouTube · новая вкладка</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{meta}</p>
         </div>
       </div>
     </a>
@@ -160,30 +130,20 @@ function YouTubeLessonCard({ videoId, title }: { videoId: string; title: string 
 }
 
 export default function ResourcesPage() {
-  const introSecondary: ReactNode = (
-    <>
-      Чтобы поставить свой логотип, положите PNG/WebP в{' '}
-      <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-gray-800">
-        frontend/public/resources-logos/
-      </code>{' '}
-      и в коде страницы задайте поле <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-gray-800">logoSrc</code> для нужного сайта.
-    </>
-  );
+  const { resources } = useUiText();
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-10">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-3xl">
-          Ресурсы и материалы
+          {resources.title}
         </h1>
         <p className="mt-3 max-w-3xl leading-relaxed text-gray-600 dark:text-gray-300">
-          Словари, статьи и видео по русскому жестовому языку (РЖЯ). Ниже карточки сайтов в одном
-          формате; тексты одной насыщенности, чтобы было проще сравнивать ресурсы.
-        </p>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-          {introSecondary}
+          {resources.intro}
         </p>
       </div>
+
+      <EasySignsSection />
 
       <section className="mb-14" aria-labelledby="videos-heading">
         <h2
@@ -191,32 +151,37 @@ export default function ResourcesPage() {
           className="mb-2 flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100"
         >
           <PlayCircle className="h-6 w-6 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden />
-          Видео и уроки
+          {resources.videosTitle}
         </h2>
         <p className="mb-6 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
-          Туториалы и плейлисты открываются на YouTube в новой вкладке.
+          {resources.videosIntro}
         </p>
 
         <h3 className="mb-4 text-base font-semibold text-gray-800 dark:text-gray-200">
-          Курс жестового языка — канал «Сообщество Семей Слепоглухих»
+          {resources.courseTitle}
         </h3>
         <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {YOUTUBE_LESSONS.map((item) => (
-            <YouTubeLessonCard key={item.id} videoId={item.id} title={item.label} />
+          {YOUTUBE_LESSONS.map((id, index) => (
+            <YouTubeLessonCard
+              key={id}
+              videoId={id}
+              title={resources.lessons[index] ?? `${index + 1}`}
+              meta={resources.youtubeMeta}
+            />
           ))}
         </div>
 
         <h3 className="mb-4 text-base font-semibold text-gray-800 dark:text-gray-200">
-          ARK MEDIA — видео-словарь жестов
+          {resources.arkTitle}
         </h3>
         <p className="mb-4 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
-          На канале — плейлисты со словарём жестов; ниже одна запись как входная точка (на YouTube
-          откройте канал и раздел плейлистов).
+          {resources.arkIntro}
         </p>
         <div className="max-w-md">
           <YouTubeLessonCard
             videoId="JTdUH6TQjK4"
-            title="Видео на канале ARK MEDIA (словарь жестов)"
+            title={resources.arkVideoTitle}
+            meta={resources.youtubeMeta}
           />
         </div>
       </section>
@@ -227,16 +192,15 @@ export default function ResourcesPage() {
           className="mb-2 flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100"
         >
           <ExternalLink className="h-6 w-6 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden />
-          Сайты и справочники
+          {resources.sitesTitle}
         </h2>
         <p className="mb-6 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
-          Один формат карточки: логотип слева (или авто-иконка сайта), заголовок, краткий тип ресурса,
-          текст на два–три предложения и ссылка.
+          {resources.sitesIntro}
         </p>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {SITE_LINKS.map((entry) => (
-            <SiteCard key={entry.href} entry={entry} />
+          {resources.sites.map((entry) => (
+            <SiteCard key={entry.href} entry={entry} openSite={resources.openSite} />
           ))}
         </div>
       </section>

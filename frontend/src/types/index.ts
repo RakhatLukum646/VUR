@@ -70,9 +70,9 @@ export interface SessionContext {
 export type Language = 'en' | 'ru' | 'kz';
 
 export const LANGUAGE_OPTIONS: { value: Language; label: string; flag: string }[] = [
-  { value: 'en', label: 'English', flag: '🇬🇧' },
-  { value: 'ru', label: 'Russian', flag: '🇷🇺' },
-  { value: 'kz', label: 'Kazakh', flag: '🇰🇿' },
+  { value: 'en', label: 'English', flag: 'EN' },
+  { value: 'ru', label: 'Русский', flag: 'RU' },
+  { value: 'kz', label: 'Қазақша', flag: 'KZ' },
 ];
 
 // App state
@@ -88,6 +88,7 @@ export interface AppState {
   currentSentence: string;
   confidence: number;
   language: Language;
+  interfaceLanguage: Language;
   
   // History
   translationHistory: Array<{
@@ -106,6 +107,7 @@ export interface AppState {
   setCurrentSentence: (sentence: string) => void;
   setConfidence: (confidence: number) => void;
   setLanguage: (language: Language) => void;
+  setInterfaceLanguage: (language: Language) => void;
   clearSession: () => void;
   addToHistory: (item: { signs: string[]; translation: string; timestamp: number }) => void;
 }

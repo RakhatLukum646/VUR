@@ -9,6 +9,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { useToast } from '../hooks/useToast';
 import { useAppStore } from '../store/useAppStore';
 import { translateSigns, clearSession as clearSessionApi } from '../services/api';
+import { useUiText } from '../i18n';
 import '../App.css';
 
 export default function TranslatorPage() {
@@ -18,7 +19,7 @@ export default function TranslatorPage() {
   const wsRef = useRef<ReturnType<typeof useWebSocket> | null>(null);
 
   const { toasts, dismiss, toast } = useToast();
-
+  const t = useUiText();
   const ws = useWebSocket();
 
   useEffect(() => {
@@ -44,9 +45,9 @@ export default function TranslatorPage() {
 
   useEffect(() => {
     if (wsError) {
-      toast.error('Connection failed', wsError);
+      toast.error(t.translator.connectionFailed, wsError);
     }
-  }, [wsError, toast]);
+  }, [wsError, toast, t.translator.connectionFailed]);
 
   const {
     isTranslating,
@@ -96,24 +97,21 @@ export default function TranslatorPage() {
         clearDetectedSigns();
 
         if (fallback) {
-          toast.warning(
-            'Offline mode',
-            'Gemini API unavailable — showing raw sign sequence as fallback.'
-          );
+          toast.warning(t.translator.offlineMode, t.translator.offlineDetail);
         }
       }
     }
 
     if (lastMessage.type === 'error') {
       const { message } = lastMessage.payload;
-      toast.error('Service error', message || 'An unexpected error occurred.');
+      toast.error(t.translator.serviceError, message || t.translator.unexpectedError);
     }
-  }, [lastMessage, addDetectedSign, setCurrentSentence, addToHistory, toast, clearDetectedSigns]);
+  }, [lastMessage, addDetectedSign, setCurrentSentence, addToHistory, toast, clearDetectedSigns, t]);
 
   const handleStart = useCallback(() => {
     startTranslation();
     connect();
-    toast.info('Translation started', 'Make sign gestures in front of the camera.');
+    toast.info(t.translator.translationStarted, t.translator.translationStartedDetail);
 
     if (cameraRef.current) {
       frameIntervalRef.current = setInterval(() => {
@@ -123,7 +121,7 @@ export default function TranslatorPage() {
         }
       }, 100);
     }
-  }, [startTranslation, connect, toast]);
+  }, [startTranslation, connect, toast, t.translator.translationStarted, t.translator.translationStartedDetail]);
 
   const handleStop = useCallback(() => {
     stopTranslation();
@@ -139,7 +137,7 @@ export default function TranslatorPage() {
     try {
       await clearSessionApi(sessionId);
     } catch {
-      // Session may not exist on backend yet
+      // Session may not exist on backend yet.
     }
 
     sendCommand('clear');
@@ -151,7 +149,7 @@ export default function TranslatorPage() {
   const handleProcessTranslation = useCallback(async () => {
     const signs = accumulatedSignsRef.current;
     if (signs.length === 0) {
-      toast.warning('No signs detected', 'Make some gestures first before translating.');
+      toast.warning(t.translator.noSigns, t.translator.noSignsDetail);
       return;
     }
 
@@ -166,12 +164,9 @@ export default function TranslatorPage() {
       });
 
       if (result.fallback) {
-        toast.warning(
-          'Offline mode',
-          'Gemini API unavailable — showing raw sign sequence as fallback.'
-        );
+        toast.warning(t.translator.offlineMode, t.translator.offlineDetail);
       } else {
-        toast.success('Translation complete');
+        toast.success(t.translator.translationComplete);
       }
 
       accumulatedSignsRef.current = [];
@@ -179,7 +174,7 @@ export default function TranslatorPage() {
     } catch (err) {
       console.error('Translation failed:', err);
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      toast.error('Translation failed', msg);
+      toast.error(t.translator.translationFailed, msg);
 
       const rawFallback = signs.join(' ');
       setCurrentSentence(rawFallback);
@@ -187,7 +182,7 @@ export default function TranslatorPage() {
       accumulatedSignsRef.current = [];
       clearDetectedSigns();
     }
-  }, [sessionId, language, setCurrentSentence, addToHistory, toast, clearDetectedSigns]);
+  }, [sessionId, language, setCurrentSentence, addToHistory, toast, clearDetectedSigns, t]);
 
   useEffect(() => {
     return () => {
@@ -219,7 +214,7 @@ export default function TranslatorPage() {
                     onClick={handleProcessTranslation}
                     className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg font-medium transition-colors shadow-md"
                   >
-                    Translate Signs to Sentence
+                    {t.translator.translateButton}
                   </button>
                 )}
 
@@ -256,44 +251,18 @@ export default function TranslatorPage() {
 
         <div className="mt-8 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
-            How to Use
+            {t.translator.howToUse}
           </h3>
           <ol className="space-y-2 text-blue-800 dark:text-blue-200">
-            <li className="flex items-start gap-2">
-              <span className="font-bold">1.</span>
-              <span>Allow camera access when prompted</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="font-bold">2.</span>
-              <span>Click &quot;Start Translation&quot; to begin</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="font-bold">3.</span>
-              <span>
-                Keep one hand centered, well lit, and large enough in the frame
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="font-bold">4.</span>
-              <span>
-                Perform RSL gestures — the model captures 32 frames (~1 second) per word, then recognises it automatically
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="font-bold">5.</span>
-              <span>
-                Click &quot;Translate Signs to Sentence&quot; to get a grammatically
-                correct translation via Gemini
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="font-bold">6.</span>
-              <span>Click &quot;Clear&quot; to start a new session</span>
-            </li>
+            {t.translator.steps.map((step, index) => (
+              <li key={step} className="flex items-start gap-2">
+                <span className="font-bold">{index + 1}.</span>
+                <span>{step}</span>
+              </li>
+            ))}
           </ol>
           <p className="mt-4 text-sm text-blue-900 dark:text-blue-200">
-            Privacy note: camera frames are processed for live recognition and are
-            not stored by the frontend.
+            {t.translator.privacy}
           </p>
         </div>
       </main>
@@ -301,9 +270,9 @@ export default function TranslatorPage() {
       <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-400">
-            <p>AITU Diploma Project &bull; Team: Ulzhan, Vlad, Rakhat</p>
+            <p>{t.translator.footerProject}</p>
             <p>
-              Session ID: <span className="font-mono">{sessionId}</span>
+              {t.translator.sessionId}: <span className="font-mono">{sessionId}</span>
             </p>
           </div>
         </div>
