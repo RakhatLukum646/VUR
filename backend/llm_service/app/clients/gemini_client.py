@@ -52,7 +52,7 @@ class GeminiClient:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
-                    temperature=0.2,
+                    temperature=0.3,
                     max_output_tokens=128,
                 ),
             )

@@ -39,6 +39,7 @@ export default function TranslatorPage() {
     lastStability,
     sequenceLength,
     handDetected,
+    isCapturing,
     sendCommand,
     error: wsError,
   } = ws;
@@ -234,6 +235,7 @@ export default function TranslatorPage() {
                 stability={lastStability}
                 sequenceLength={sequenceLength}
                 handDetected={handDetected}
+                isCapturing={isCapturing}
               />
             </div>
           </div>

@@ -14,7 +14,7 @@ CERT_DIR="${CERT_DIR_OVERRIDE:-"$SCRIPT_DIR/certs"}"
 mkdir -p "$CERT_DIR"
 
 if [ -f "$CERT_DIR/server.crt" ] && [ -f "$CERT_DIR/server.key" ] && [ "${FORCE:-0}" = "0" ]; then
-    echo "Certificates already exist at $CERT_DIR/ — skipping. Set FORCE=1 to regenerate."
+    echo "Certificates already exist at $CERT_DIR/ - skipping. Set FORCE=1 to regenerate."
     exit 0
 fi
 
