@@ -1,3 +1,4 @@
+import asyncio
 import secrets
 
 from bson import ObjectId
@@ -172,7 +173,7 @@ async def register(
     }
 
     result = await users_collection.insert_one(user_doc)
-    send_verification_email(data.email, verification_token)
+    asyncio.create_task(asyncio.to_thread(send_verification_email, data.email, verification_token))
 
     return {
         "message": "User created. Check your email for the verification link.",
@@ -445,7 +446,7 @@ async def resend_verification(
         {"_id": user["_id"]},
         {"$set": {"verification_token": token}},
     )
-    send_verification_email(user["email"], token)
+    asyncio.create_task(asyncio.to_thread(send_verification_email, user["email"], token))
     return {"message": "If that email exists, a verification email has been sent."}
 
 
@@ -464,7 +465,7 @@ async def request_password_reset(
     user = await users_collection.find_one({"email": data.email})
     if user:
         token = await create_password_reset_token(user["_id"])
-        send_password_reset_email(user["email"], token)
+        asyncio.create_task(asyncio.to_thread(send_password_reset_email, user["email"], token))
 
     return {
         "message": "If that email exists, a password reset link has been sent."

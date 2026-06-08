@@ -23,10 +23,6 @@ def _frontend_link(path: str) -> str:
     is_localhost = hostname in {"localhost", "127.0.0.1"}
 
     if is_localhost:
-        if port is None:
-            netloc = f"{hostname}:5173"
-            parsed = parsed._replace(netloc=netloc)
-
         # If using the docker gateway TLS port, force https.
         if parsed.port == 4443 and parsed.scheme != "https":
             parsed = parsed._replace(scheme="https")
@@ -60,7 +56,7 @@ def send_verification_email(email: str, token: str):
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
     try:
-        server = smtplib.SMTP(settings.email_host, settings.email_port)
+        server = smtplib.SMTP(settings.email_host, settings.email_port, timeout=10)
         server.starttls()
         server.login(settings.email_user, settings.email_password)
         server.send_message(msg)
@@ -99,7 +95,7 @@ def send_password_reset_email(email: str, token: str):
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
     try:
-        server = smtplib.SMTP(settings.email_host, settings.email_port)
+        server = smtplib.SMTP(settings.email_host, settings.email_port, timeout=10)
         server.starttls()
         server.login(settings.email_user, settings.email_password)
         server.send_message(msg)
