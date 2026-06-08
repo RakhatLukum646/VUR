@@ -67,35 +67,35 @@ export const Controls = ({
 
   return (
     <div className={containerClassName}>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
         {/* Status Indicator */}
-        <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0 ${getStatusColor()} ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} />
           <div>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{getStatusText()}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="hidden sm:block text-xs text-gray-500 dark:text-gray-400">
               {connectionStatus === 'connected' ? t.status.websocketActive : t.status.websocketInactive}
             </p>
           </div>
         </div>
 
         {/* Main Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {!isTranslating ? (
             <button
               onClick={onStart}
               disabled={connectionStatus === 'connecting'}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors shadow-md"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors shadow-md text-sm sm:text-base"
             >
-              <Play className="w-5 h-5" />
+              <Play className="w-4 h-4 sm:w-5 sm:h-5" />
               {t.controls.start}
             </button>
           ) : (
             <button
               onClick={onStop}
-              className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-md text-sm sm:text-base"
             >
-              <Square className="w-5 h-5" />
+              <Square className="w-4 h-4 sm:w-5 sm:h-5" />
               {t.controls.stop}
             </button>
           )}
@@ -103,17 +103,17 @@ export const Controls = ({
           <button
             onClick={onClear}
             disabled={detectedSigns.length === 0}
-            className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-400 text-gray-700 dark:text-gray-200 rounded-lg font-medium transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-400 text-gray-700 dark:text-gray-200 rounded-lg font-medium transition-colors text-sm sm:text-base"
           >
-            <RotateCcw className="w-5 h-5" />
+            <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
             {t.controls.clear}
           </button>
         </div>
 
         {/* Language + Stats */}
-        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+        <div className="flex items-center gap-2 sm:gap-4 text-sm text-gray-600 dark:text-gray-300">
           {/* Language Selector */}
-          <div className="inline-flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2">
             <Globe className="w-4 h-4 shrink-0 opacity-80 text-indigo-600 dark:text-indigo-400" aria-hidden />
             <MenuSelect
               value={language}
@@ -123,28 +123,28 @@ export const Controls = ({
                 const next = LANGUAGE_OPTIONS.find((opt) => opt.value === nextValue);
                 if (next) setLanguage(next.value);
               }}
-              buttonClassName="inline-flex h-10 items-center gap-2 rounded-lg px-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors"
-              menuClassName="absolute left-0 z-50 mt-2 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden"
+              buttonClassName="inline-flex h-9 sm:h-10 items-center gap-2 rounded-lg px-2.5 sm:px-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors text-sm"
+              menuClassName="absolute left-0 z-50 mt-2 w-56 sm:w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden"
               className="relative"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <Mic className="w-4 h-4 text-blue-500" />
             <span>{detectedSigns.length} {t.controls.signs}</span>
           </div>
-          
+
           {isTranslating && (
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-green-600 dark:text-green-400">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="font-medium">{t.controls.translating}</span>
+              <span className="hidden sm:inline font-medium">{t.controls.translating}</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Help Text */}
-      <div className={helpTextClassName}>
+      {/* Help Text — hidden on mobile to save space */}
+      <div className={`hidden sm:block ${helpTextClassName}`}>
         <p className="text-xs text-gray-500 dark:text-gray-400">
           <span className="font-medium">{t.controls.tipLabel}</span> {t.controls.tip}
         </p>

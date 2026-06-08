@@ -102,10 +102,8 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
     return candidates.length > 8;
   }, [language, voices]);
 
-  const signsDisplay = useMemo(() => {
-    const last = translationHistory[translationHistory.length - 1];
-    return last ? last.signs.slice(-20).join(' ') : '';
-  }, [translationHistory]);
+  // Fix: show current active buffer, not stale history
+  const signsDisplay = detectedSigns.slice(-20).join(' ');
   const recentHistory = translationHistory.slice(-5).reverse();
 
   const highlightRange = useMemo(() => {
@@ -159,16 +157,17 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg overflow-hidden flex flex-col h-full border border-gray-100 dark:border-gray-700">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-800 px-6 py-4">
+    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg overflow-hidden flex flex-col h-auto lg:h-full border border-gray-100 dark:border-gray-700">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-800 px-4 lg:px-6 py-3 lg:py-4">
         <h2 className="text-white font-semibold flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
           {t.panel.title}
         </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <div className="rounded-xl border border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-6">
+        {/* Current Detection — hidden on mobile (shown inline in page above camera controls) */}
+        <div className="hidden lg:block rounded-xl border border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 p-4 space-y-3">
           <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
             <Activity className="w-4 h-4" />
             <span className="text-sm font-medium uppercase tracking-wide">
@@ -241,16 +240,31 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
           </div>
         </div>
 
+        {/* Detected Signs — mobile: chips; desktop: monospace text */}
         <div>
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
             {t.panel.detectedSigns}
           </h3>
-          <div className="bg-gray-50 dark:bg-gray-800/80 rounded-lg p-4 min-h-[80px]">
+          <div className="bg-gray-50 dark:bg-gray-800/80 rounded-lg p-3 lg:p-4 min-h-[56px] lg:min-h-[80px]">
             {signsDisplay ? (
-              <p className="text-lg font-mono text-gray-800 dark:text-gray-100 break-all">
-                {signsDisplay}
-              </p>
+              <>
+                {/* Mobile: chips */}
+                <div className="flex lg:hidden flex-wrap gap-1.5">
+                  {detectedSigns.slice(-20).map((sign, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-200 border border-blue-200/70 dark:border-blue-800/60"
+                    >
+                      {sign}
+                    </span>
+                  ))}
+                </div>
+                {/* Desktop: monospace */}
+                <p className="hidden lg:block text-lg font-mono text-gray-800 dark:text-gray-100 break-all">
+                  {signsDisplay}
+                </p>
+              </>
             ) : (
               <p className="text-gray-400 dark:text-gray-500 italic">{t.panel.noSignsDetected}</p>
             )}
@@ -260,13 +274,37 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
           </p>
         </div>
 
+        {/* Diagnostics (guidance + buffer count) — collapsible on mobile */}
+        <details className="lg:hidden rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <summary className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800/60 text-gray-600 dark:text-gray-300 text-xs font-medium cursor-pointer select-none">
+            {t.panel.bufferedSigns}: {sequenceLength} · {t.statusBar.defaultGuidance}
+          </summary>
+          <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+            <p className="font-medium text-blue-900 dark:text-blue-100">
+              {guidance ?? t.statusBar.defaultGuidance}
+            </p>
+            <div className="flex gap-1.5 mt-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-2 h-2 rounded-full ${
+                    i < Math.round(frameQuality * 8) ? 'bg-blue-400' : 'bg-gray-200 dark:bg-gray-700'
+                  }`}
+                />
+              ))}
+              <span className="text-xs text-gray-400 ml-1">{Math.round(frameQuality * 100)}%</span>
+            </div>
+          </div>
+        </details>
+
+        {/* Translated Sentence */}
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">
               {t.panel.translatedSentence}
             </h3>
             {isSupported && currentSentence && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {voices.length > 0 && (
                   <div className="inline-flex items-center gap-2">
                     <Volume2 className="w-4 h-4 shrink-0 opacity-80 text-blue-600 dark:text-blue-400" aria-hidden />
@@ -356,9 +394,9 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               </div>
             )}
           </div>
-          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg p-4 min-h-[80px]">
+          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg p-3 lg:p-4 min-h-[64px] lg:min-h-[80px]">
             {currentSentence ? (
-              <p className="text-lg text-gray-800 dark:text-gray-100">
+              <p className="text-base lg:text-lg text-gray-800 dark:text-gray-100">
                 {currentSentenceTokens.map((token, idx) => {
                   const shouldHighlight =
                     activeTextKey === 'current' &&
@@ -400,8 +438,8 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                   key={index}
                   className="bg-gray-50 dark:bg-gray-800/80 rounded-lg p-3 text-sm flex items-start gap-2"
                 >
-                  <div className="flex-1">
-                    <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-gray-500 dark:text-gray-400 text-xs mb-1 truncate">
                       {item.signs.join(' ')}
                     </div>
                     <div className="text-gray-800 dark:text-gray-100 font-medium">
