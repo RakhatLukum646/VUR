@@ -1,8 +1,7 @@
 import type { TranslationResponse, SessionContext } from '../types';
 
-// In Docker (production) the Nginx gateway proxies all traffic through port 80.
-// In local dev (npm run dev), set VITE_LLM_URL=http://localhost:8002 in .env.local.
 const LLM_API_URL = import.meta.env.VITE_LLM_URL ?? '';
+const MEDIAPIPE_URL = import.meta.env.VITE_MEDIAPIPE_URL ?? '';
 
 // Translate sign sequence to natural language
 export async function translateSigns(
@@ -88,7 +87,7 @@ export async function checkHealth(): Promise<{ status: string }> {
 }
 
 export async function checkMediaPipeHealth(): Promise<{ status: string }> {
-  const response = await fetch('/health/mediapipe');
+  const response = await fetch(`${MEDIAPIPE_URL}/api/v1/health`);
   if (!response.ok) throw new Error(`MediaPipe health check failed: ${response.status}`);
   return response.json();
 }
