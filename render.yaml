@@ -1,0 +1,78 @@
+services:
+  # ── Auth Service ──────────────────────────────────────────
+  - type: web
+    name: vur-auth
+    runtime: docker
+    dockerfilePath: ./backend/auth_service/Dockerfile
+    dockerContext: ./backend/auth_service
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: jwt_secret
+        sync: false          # paste the same strong secret you use for vur-mediapipe
+      - key: mongodb_url
+        sync: false          # paste your MongoDB Atlas connection string
+      - key: mongodb_db
+        value: vur_auth
+      - key: cors_origins
+        sync: false          # paste your Vercel URL, e.g. https://vur.vercel.app
+      - key: frontend_url
+        sync: false          # same Vercel URL
+      - key: cookie_secure
+        value: "true"
+      - key: cookie_samesite
+        value: none
+      - key: email_host
+        sync: false
+      - key: email_port
+        value: "587"
+      - key: email_user
+        sync: false
+      - key: email_password
+        sync: false
+      - key: log_level
+        value: info
+
+  # ── LLM Service ───────────────────────────────────────────
+  - type: web
+    name: vur-llm
+    runtime: docker
+    dockerfilePath: ./backend/llm_service/Dockerfile
+    dockerContext: ./backend/llm_service
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # your Gemini API key
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: USE_REDIS
+        value: "true"
+      - key: REDIS_URL
+        sync: false          # paste your Upstash Redis URL (rediss://...)
+      - key: CORS_ORIGINS
+        sync: false          # paste your Vercel URL
+      - key: LOG_LEVEL
+        value: info
+
+  # ── MediaPipe Service ─────────────────────────────────────
+  - type: web
+    name: vur-mediapipe
+    runtime: docker
+    dockerfilePath: ./backend/media_pipe_service/Dockerfile
+    dockerContext: ./backend/media_pipe_service
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: JWT_SECRET
+        sync: false          # paste the same secret as jwt_secret in vur-auth
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: LLM_SERVICE_URL
+        value: https://vur-llm.onrender.com
+      - key: CONFIDENCE_THRESHOLD
+        value: "0.7"
+      - key: CORS_ORIGINS
+        sync: false          # paste your Vercel URL
+      - key: LOG_LEVEL
+        value: info
