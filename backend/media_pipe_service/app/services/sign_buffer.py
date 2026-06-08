@@ -150,7 +150,7 @@ class SignBuffer:
     def get_session_stats(self, session_id: str) -> dict:
         buffer = self.buffers.get(session_id)
         if not buffer:
-            return {"signs_count": 0, "unique_signs": 0}
+            return {"signs_count": 0, "unique_signs": 0, "stability_progress": 0}
         
         return {
             "signs_count": len(buffer.signs),
